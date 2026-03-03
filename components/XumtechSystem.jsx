@@ -981,6 +981,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
     const body = { id: editModal.id, ...editForm, horasLimite: Number(editForm.horasLimite), personasDedicadas: Number(editForm.personasDedicadas) };
     const res = await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const saved = await res.json();
+    if (saved.error) { alert(`Error al guardar: ${saved.error}`); return; }
     setServicios(p => p.map(s => s.id === editModal.id ? { ...saved, roles: s.roles || {} } : s));
     setEditModal(null);
   };
@@ -996,7 +997,9 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   // ── Cambiar estado ────────────────────────────────────────────────────────
   const handleToggleEstado = async (s) => {
     const body = { ...s, estado: s.estado === "Activo" ? "Inactivo" : "Activo" };
-    await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    if (saved.error) { alert(`Error: ${saved.error}`); return; }
     setServicios(p => p.map(x => x.id === s.id ? { ...x, estado: body.estado } : x));
   };
 

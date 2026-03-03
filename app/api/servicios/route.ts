@@ -24,24 +24,31 @@ async function ensureTable() {
       created_at        TIMESTAMPTZ DEFAULT NOW()
     )
   `;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS personas_dedicadas INTEGER NOT NULL DEFAULT 1`;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS jira_id TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS tecnologia TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_inicio TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_vencimiento TEXT NOT NULL DEFAULT ''`;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS renovable BOOLEAN NOT NULL DEFAULT true`;
+  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'`;
 }
 
 function mapRow(row: any) {
   return {
     id:                row.id,
-    nombre:            row.nombre,
-    tipo:              row.tipo,
-    tribu:             row.tribu,
-    po:                row.po,
-    contratoId:        row.contrato_id,
-    jiraId:            row.jira_id,
-    tecnologia:        row.tecnologia,
-    horasLimite:       row.horas_limite,
-    personasDedicadas: row.personas_dedicadas,
-    estado:            row.estado,
-    fechaInicio:       row.fecha_inicio,
-    fechaVencimiento:  row.fecha_vencimiento,
-    renovable:         row.renovable,
+    nombre:            row.nombre            ?? "",
+    tipo:              row.tipo              ?? "Soporte Evolutivo",
+    tribu:             row.tribu             ?? "Dunamis",
+    po:                row.po                ?? "",
+    contratoId:        row.contrato_id       ?? "",
+    jiraId:            row.jira_id           ?? "",
+    tecnologia:        row.tecnologia        ?? "",
+    horasLimite:       Number(row.horas_limite      ?? 0),
+    personasDedicadas: Number(row.personas_dedicadas ?? 1),
+    estado:            row.estado            ?? "Activo",
+    fechaInicio:       row.fecha_inicio      ?? "",
+    fechaVencimiento:  row.fecha_vencimiento ?? "",
+    renovable:         row.renovable         ?? true,
     roles:             {},
   };
 }
@@ -67,7 +74,7 @@ export async function POST(req: Request) {
       VALUES
         (${b.nombre}, ${b.tipo}, ${b.tribu}, ${b.po ?? ""}, ${b.contratoId ?? ""},
          ${b.jiraId ?? ""}, ${b.tecnologia ?? ""},
-         ${b.horasLimite ?? 0}, ${b.personasDedicadas ?? 1},
+         ${Number(b.horasLimite ?? 0)}, ${Number(b.personasDedicadas ?? 1)},
          ${b.estado ?? "Activo"}, ${b.fechaInicio ?? ""}, ${b.fechaVencimiento ?? ""},
          ${b.renovable ?? true})
       RETURNING *
@@ -82,24 +89,26 @@ export async function PUT(req: Request) {
   try {
     await ensureTable();
     const b = await req.json();
+    if (!b.id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
     const [row] = await sql`
       UPDATE servicios SET
-        nombre            = ${b.nombre},
-        tipo              = ${b.tipo},
-        tribu             = ${b.tribu},
-        po                = ${b.po ?? ""},
-        contrato_id       = ${b.contratoId ?? ""},
-        jira_id           = ${b.jiraId ?? ""},
-        tecnologia        = ${b.tecnologia ?? ""},
-        horas_limite      = ${b.horasLimite ?? 0},
-        personas_dedicadas = ${b.personasDedicadas ?? 1},
-        estado            = ${b.estado ?? "Activo"},
-        fecha_inicio      = ${b.fechaInicio ?? ""},
-        fecha_vencimiento = ${b.fechaVencimiento ?? ""},
-        renovable         = ${b.renovable ?? true}
+        nombre             = ${b.nombre},
+        tipo               = ${b.tipo},
+        tribu              = ${b.tribu},
+        po                 = ${b.po ?? ""},
+        contrato_id        = ${b.contratoId ?? ""},
+        jira_id            = ${b.jiraId ?? ""},
+        tecnologia         = ${b.tecnologia ?? ""},
+        horas_limite       = ${Number(b.horasLimite ?? 0)},
+        personas_dedicadas = ${Number(b.personasDedicadas ?? 1)},
+        estado             = ${b.estado ?? "Activo"},
+        fecha_inicio       = ${b.fechaInicio ?? ""},
+        fecha_vencimiento  = ${b.fechaVencimiento ?? ""},
+        renovable          = ${b.renovable ?? true}
       WHERE id = ${b.id}
       RETURNING *
     `;
+    if (!row) return NextResponse.json({ error: "Servicio no encontrado" }, { status: 404 });
     return NextResponse.json(mapRow(row));
   } catch (e: any) {
     return NextResponse.json({ error: e.message }, { status: 500 });
