@@ -31,50 +31,14 @@ const CALENDAR_SEED = [
   { mes: "2026-06", label: "Jun 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
 ];
 
-const COLABORADORES_SEED = [
-  { id: 1, name: "Abraham Arguello", status: "Activo", rolPrincipal: "Funcional", tribu: "Dunamis", email: "aarguello@xumtech.com", horasDia: 8 },
-  { id: 2, name: "Ali Hashemi", status: "Activo", rolPrincipal: "Técnico", tribu: "Bulwak", email: "ahashemi@xumtech.com", horasDia: 8 },
-  { id: 3, name: "Andrea Alpizar", status: "Activo", rolPrincipal: "PO", tribu: "Dunamis", email: "aalpizar@xumtech.com", horasDia: 8 },
-  { id: 4, name: "Ángel Silva", status: "Activo", rolPrincipal: "Proveedores", tribu: "Dunamis", email: "asilva@xumtech.com", horasDia: 8 },
-  { id: 5, name: "Carlos Quesada", status: "Activo", rolPrincipal: "Arquitecto", tribu: "Yarigai", email: "cquesada@xumtech.com", horasDia: 8 },
-  { id: 6, name: "Carlos Roman", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "croman@xumtech.com", horasDia: 8 },
-  { id: 7, name: "Daniel Jacamo", status: "Activo", rolPrincipal: "Funcional", tribu: "Dunamis", email: "djacamo@xumtech.com", horasDia: 8 },
-  { id: 8, name: "Deam Saavedra", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "dsaavedra@xumtech.com", horasDia: 8 },
-  { id: 9, name: "Edgar Mendoza", status: "Activo", rolPrincipal: "Arquitecto", tribu: "Yarigai", email: "emendoza@xumtech.com", horasDia: 8 },
-  { id: 10, name: "Eduardo Solano", status: "Activo", rolPrincipal: "PO", tribu: "Dunamis", email: "esolano@xumtech.com", horasDia: 8 },
-  { id: 11, name: "Geovanela Bermudez", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "gbermudez@xumtech.com", horasDia: 8 },
-  { id: 12, name: "Gerson Godinez", status: "Activo", rolPrincipal: "Funcional", tribu: "Bulwak", email: "ggodinez@xumtech.com", horasDia: 8 },
-  { id: 13, name: "Gloriana Hernández", status: "Activo", rolPrincipal: "Funcional", tribu: "Dunamis", email: "ghernandez@xumtech.com", horasDia: 8 },
-  { id: 14, name: "Hugo Brenes", status: "Activo", rolPrincipal: "Arquitecto", tribu: "Yarigai", email: "hbrenes@xumtech.com", horasDia: 8 },
-  { id: 15, name: "Jose Lobo", status: "Activo", rolPrincipal: "PO", tribu: "Yarigai", email: "jlobo@xumtech.com", horasDia: 8 },
-  { id: 16, name: "Jose Ramirez", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "jramirez@xumtech.com", horasDia: 8 },
-  { id: 17, name: "Juan José Villalobos", status: "Activo", rolPrincipal: "Técnico", tribu: "Bulwak", email: "jvillalobos@xumtech.com", horasDia: 8 },
-  { id: 18, name: "Kendal Quesada", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "kquesada@xumtech.com", horasDia: 8 },
-  { id: 19, name: "Leonardo Fallas", status: "Activo", rolPrincipal: "Técnico", tribu: "Bulwak", email: "lfallas@xumtech.com", horasDia: 8 },
-  { id: 20, name: "Luis Escobar", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "lescobar@xumtech.com", horasDia: 8 },
-  { id: 21, name: "Maribel Cordero", status: "Activo", rolPrincipal: "Funcional", tribu: "Yarigai", email: "mcordero@xumtech.com", horasDia: 8 },
-  { id: 22, name: "Ronaldo Picado", status: "Activo", rolPrincipal: "Técnico", tribu: "Bulwak", email: "rpicado@xumtech.com", horasDia: 8 },
-  { id: 23, name: "Ruben Barrantes", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "rbarrantes@xumtech.com", horasDia: 8 },
-  { id: 24, name: "Selenia Orozco", status: "Activo", rolPrincipal: "PO", tribu: "Dunamis", email: "sorozco@xumtech.com", horasDia: 8 },
-  { id: 25, name: "Solange Meza", status: "Activo", rolPrincipal: "Técnico", tribu: "Yarigai", email: "smeza@xumtech.com", horasDia: 8 },
-  { id: 26, name: "Victor Naranjo", status: "Activo", rolPrincipal: "Técnico", tribu: "Bulwak", email: "vnaranjo@xumtech.com", horasDia: 8 },
-  { id: 27, name: "Wilson Garzón", status: "Activo", rolPrincipal: "Funcional", tribu: "Bulwak", email: "wgarzon@xumtech.com", horasDia: 8 },
-  { id: 28, name: "Zimri Zamora", status: "Activo", rolPrincipal: "Arquitecto", tribu: "Dunamis", email: "zzamora@xumtech.com", horasDia: 8 },
-  { id: 29, name: "Alex Alfaro", status: "Inactivo", rolPrincipal: "PO", tribu: "Dunamis", email: "aalfaro@xumtech.com", horasDia: 8 },
-  { id: 30, name: "Alonso Blanco", status: "Inactivo", rolPrincipal: "Técnico", tribu: "Dunamis", email: "ablanco@xumtech.com", horasDia: 8 },
+const COLABORADORES_SEED = [ 
 ];
 
 const SERVICIOS_SEED = [
-  { id: 1,  nombre: "Coopenae",                    tipo: "Soporte Evolutivo",           tribu: "Dunamis", po: "Andrea Alpizar",    contratoId: "CN-00180", jiraId: "NAE RL", tecnologia: "Oracle CRM",           horasLimite: 20,  estado: "Activo",   fechaInicio: "2024-01-01", fechaVencimiento: "2026-06-30", renovable: true  },
-];
+  ];
 
 // Disponibilidad % bruta semilla (legacy - se mantiene para Forecast/Simulador)
 const DISPONIBILIDAD_SEED = [
-  { colaborador: "Ruben Barrantes", rol: "Técnico", tribu: "Yarigai", mes: "2026-01", porcentaje: 50 },
-  { colaborador: "Ruben Barrantes", rol: "GA", tribu: "Dunamis", mes: "2026-01", porcentaje: 50 },
-  { colaborador: "Carlos Roman", rol: "Técnico", tribu: "Yarigai", mes: "2026-01", porcentaje: 100 },
-  { colaborador: "Andrea Alpizar", rol: "PO", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 },
-  { colaborador: "Jose Lobo", rol: "PO", tribu: "Yarigai", mes: "2026-01", porcentaje: 100 },
 ];
 
 // Parámetros globales de utilización
@@ -86,35 +50,10 @@ const PARAMS_SEED = {
 
 // Asignaciones seed — rol+servicio+mes (Dunamis/Bulwak) y persona+servicio+mes (Yarigai)
 const ASIGNACIONES_SEED = [
-  // Dunamis — por rol
-  { id: 1,  tribu: "Dunamis", rol: "Técnico",   colaborador: null, servicioId: 1,  mes: "2026-02", horas: 20  },
-  { id: 2,  tribu: "Dunamis", rol: "Técnico",   colaborador: null, servicioId: 2,  mes: "2026-02", horas: 50  },
-  { id: 3,  tribu: "Dunamis", rol: "Técnico",   colaborador: null, servicioId: 3,  mes: "2026-02", horas: 40  },
-  { id: 4,  tribu: "Dunamis", rol: "Funcional", colaborador: null, servicioId: 5,  mes: "2026-02", horas: 60  },
-  { id: 5,  tribu: "Dunamis", rol: "PO",        colaborador: null, servicioId: 1,  mes: "2026-02", horas: 10  },
-  { id: 6,  tribu: "Dunamis", rol: "PO",        colaborador: null, servicioId: 2,  mes: "2026-02", horas: 15  },
-  { id: 7,  tribu: "Dunamis", rol: "Técnico",   colaborador: null, servicioId: 10, mes: "2026-02", horas: 80  },
-  { id: 8,  tribu: "Dunamis", rol: "Técnico",   colaborador: null, servicioId: 1,  mes: "2026-03", horas: 20  },
-  { id: 9,  tribu: "Dunamis", rol: "Técnico",   colaborador: null, servicioId: 2,  mes: "2026-03", horas: 50  },
-  { id: 10, tribu: "Dunamis", rol: "Funcional", colaborador: null, servicioId: 5,  mes: "2026-03", horas: 60  },
-  // Bulwak — por rol
-  { id: 11, tribu: "Bulwak",  rol: "Técnico",   colaborador: null, servicioId: 9,  mes: "2026-02", horas: 30  },
-  { id: 12, tribu: "Bulwak",  rol: "Técnico",   colaborador: null, servicioId: 9,  mes: "2026-03", horas: 30  },
-  // Yarigai — por persona
-  { id: 13, tribu: "Yarigai", rol: "Técnico",   colaborador: "Carlos Roman",      servicioId: 8,  mes: "2026-02", horas: 60 },
-  { id: 14, tribu: "Yarigai", rol: "Técnico",   colaborador: "Deam Saavedra",     servicioId: 8,  mes: "2026-02", horas: 40 },
-  { id: 15, tribu: "Yarigai", rol: "PO",        colaborador: "Jose Lobo",         servicioId: 8,  mes: "2026-02", horas: 20 },
-  { id: 16, tribu: "Yarigai", rol: "Técnico",   colaborador: "Ruben Barrantes",   servicioId: 10, mes: "2026-02", horas: 70 },
-  { id: 17, tribu: "Yarigai", rol: "Técnico",   colaborador: "Carlos Roman",      servicioId: 8,  mes: "2026-03", horas: 60 },
-  { id: 18, tribu: "Yarigai", rol: "Técnico",   colaborador: "Deam Saavedra",     servicioId: 8,  mes: "2026-03", horas: 40 },
-  { id: 19, tribu: "Yarigai", rol: "Técnico",   colaborador: "Ruben Barrantes",   servicioId: 10, mes: "2026-03", horas: 70 },
 ];
 
 // Ausencias semilla
 const AUSENCIAS_SEED = [
-  { id: 1, colaborador: "Ruben Barrantes", mes: "2026-01", fecha: "2026-01-15", dias: 1, tipo: "Vacaciones", notas: "" },
-  { id: 2, colaborador: "Carlos Roman", mes: "2026-02", fecha: "2026-02-10", dias: 2, tipo: "Incapacidad", notas: "Gripe" },
-  { id: 3, colaborador: "Andrea Alpizar", mes: "2025-12", fecha: "2025-12-26", dias: 3, tipo: "Vacaciones", notas: "Fin de año" },
 ];
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
