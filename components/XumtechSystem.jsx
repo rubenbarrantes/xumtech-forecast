@@ -11,24 +11,24 @@ const HORAS_DIA = 8;
 const HORAS_NO_COBRABLE = 11;
 
 const CALENDAR_SEED = [
-  { mes: "2026-06", label: "Jun 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
-  { mes: "2026-05", label: "May 2026", diasLaborales: 20, feriados: 1, dif20: 1 },
-  { mes: "2026-04", label: "Abr 2026", diasLaborales: 19, feriados: 3, dif20: 2 },
-  { mes: "2026-03", label: "Mar 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
-  { mes: "2026-02", label: "Feb 2026", diasLaborales: 20, feriados: 0, dif20: 0 },
-  { mes: "2026-01", label: "Ene 2026", diasLaborales: 21, feriados: 1, dif20: 2 },
-  { mes: "2025-12", label: "Dic 2025", diasLaborales: 21, feriados: 2, dif20: 3 },
-  { mes: "2025-11", label: "Nov 2025", diasLaborales: 18, feriados: 2, dif20: 0 },
-  { mes: "2025-10", label: "Oct 2025", diasLaborales: 23, feriados: 0, dif20: 3 },
-  { mes: "2025-09", label: "Sep 2025", diasLaborales: 20, feriados: 2, dif20: 2 },
-  { mes: "2025-08", label: "Ago 2025", diasLaborales: 19, feriados: 2, dif20: 1 },
-  { mes: "2025-07", label: "Jul 2025", diasLaborales: 22, feriados: 1, dif20: 3 },
-  { mes: "2025-06", label: "Jun 2025", diasLaborales: 21, feriados: 0, dif20: 1 },
-  { mes: "2025-05", label: "May 2025", diasLaborales: 21, feriados: 1, dif20: 2 }, 
-  { mes: "2025-04", label: "Abr 2025", diasLaborales: 19, feriados: 3, dif20: 2 },
-  { mes: "2025-03", label: "Mar 2025", diasLaborales: 21, feriados: 0, dif20: 1 },
+  { mes: "2025-01", label: "Ene 2025", diasLaborales: 22, feriados: 1, dif20: 3 },
   { mes: "2025-02", label: "Feb 2025", diasLaborales: 20, feriados: 0, dif20: 0 },
-  { mes: "2025-01", label: "Ene 2025", diasLaborales: 22, feriados: 1, dif20: 3 },  
+  { mes: "2025-03", label: "Mar 2025", diasLaborales: 21, feriados: 0, dif20: 1 },
+  { mes: "2025-04", label: "Abr 2025", diasLaborales: 19, feriados: 3, dif20: 2 },
+  { mes: "2025-05", label: "May 2025", diasLaborales: 21, feriados: 1, dif20: 2 },
+  { mes: "2025-06", label: "Jun 2025", diasLaborales: 21, feriados: 0, dif20: 1 },
+  { mes: "2025-07", label: "Jul 2025", diasLaborales: 22, feriados: 1, dif20: 3 },
+  { mes: "2025-08", label: "Ago 2025", diasLaborales: 19, feriados: 2, dif20: 1 },
+  { mes: "2025-09", label: "Sep 2025", diasLaborales: 20, feriados: 2, dif20: 2 },
+  { mes: "2025-10", label: "Oct 2025", diasLaborales: 23, feriados: 0, dif20: 3 },
+  { mes: "2025-11", label: "Nov 2025", diasLaborales: 18, feriados: 2, dif20: 0 },
+  { mes: "2025-12", label: "Dic 2025", diasLaborales: 21, feriados: 2, dif20: 3 },
+  { mes: "2026-01", label: "Ene 2026", diasLaborales: 21, feriados: 1, dif20: 2 },
+  { mes: "2026-02", label: "Feb 2026", diasLaborales: 20, feriados: 0, dif20: 0 },
+  { mes: "2026-03", label: "Mar 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
+  { mes: "2026-04", label: "Abr 2026", diasLaborales: 19, feriados: 3, dif20: 2 },
+  { mes: "2026-05", label: "May 2026", diasLaborales: 20, feriados: 1, dif20: 1 },
+  { mes: "2026-06", label: "Jun 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
 ];
 
 const COLABORADORES_SEED = [
@@ -65,7 +65,16 @@ const COLABORADORES_SEED = [
 ];
 
 const SERVICIOS_SEED = [
-  { id: 1,  nombre: "Prueba",                    tipo: "Soporte Evolutivo",           tribu: "Yarigai", po: "Rubén Barrantes",    contratoId: "CN-00000", jiraId: "TEST", tecnologia: "Oracle CRM",           horasLimite: 1,  estado: "Activo",   fechaInicio: "2024-01-01", fechaVencimiento: "2025-12-31", renovable: true  },
+  { id: 1,  nombre: "Coopenae",                    tipo: "Soporte Evolutivo",           tribu: "Dunamis", po: "Andrea Alpizar",    contratoId: "CN-00180", jiraId: "NAE RL", tecnologia: "Oracle CRM",           horasLimite: 20,  estado: "Activo",   fechaInicio: "2024-01-01", fechaVencimiento: "2026-06-30", renovable: true  },
+  { id: 2,  nombre: "Coocique CRM",                tipo: "Soporte Evolutivo",           tribu: "Dunamis", po: "Selenia Orozco",    contratoId: "CN-00181", jiraId: "COOC",   tecnologia: "Oracle CRM",           horasLimite: 70,  estado: "Activo",   fechaInicio: "2024-03-01", fechaVencimiento: "2026-08-31", renovable: true  },
+  { id: 3,  nombre: "Cable Bahamas Field Service", tipo: "Soporte Evolutivo + Crítico", tribu: "Dunamis", po: "Eduardo Solano",    contratoId: "CN-00182", jiraId: "CBLS",   tecnologia: "Salesforce Field Service", horasLimite: 50, estado: "Activo", fechaInicio: "2025-01-01", fechaVencimiento: "2026-04-30", renovable: true  },
+  { id: 4,  nombre: "Promerica RD",                tipo: "Soporte Evolutivo + Crítico", tribu: "Dunamis", po: "Andrea Alpizar",    contratoId: "CN-00138", jiraId: "PRDSE",  tecnologia: "Oracle CRM",           horasLimite: 20,  estado: "Activo",   fechaInicio: "2023-06-01", fechaVencimiento: "2026-05-31", renovable: true  },
+  { id: 5,  nombre: "Banrural CRM",                tipo: "Soporte Evolutivo + Crítico", tribu: "Dunamis", po: "Gloriana Hernández",contratoId: "CN-00102", jiraId: "BSE",    tecnologia: "Oracle CRM",           horasLimite: 82,  estado: "Activo",   fechaInicio: "2023-01-01", fechaVencimiento: "2026-12-31", renovable: true  },
+  { id: 6,  nombre: "Prome BPM CR",               tipo: "Talento Dedicado",            tribu: "Dunamis", po: "Selenia Orozco",    contratoId: "CN-00189", jiraId: "",        tecnologia: "Salesforce CRM",       horasLimite: 160, personasDedicadas: 1, estado: "Activo", fechaInicio: "2025-07-01", fechaVencimiento: "2026-06-30", renovable: false },
+  { id: 7,  nombre: "Purdy Salesforce",            tipo: "Talento Dedicado",            tribu: "Dunamis", po: "Eduardo Solano",    contratoId: "CN-00159", jiraId: "",        tecnologia: "Salesforce CRM",       horasLimite: 160, personasDedicadas: 1, estado: "Activo", fechaInicio: "2025-04-01", fechaVencimiento: "2026-03-31", renovable: true  },
+  { id: 8,  nombre: "Improsa Servicio Evolutivo",  tipo: "Soporte Evolutivo",           tribu: "Yarigai", po: "Jose Lobo",         contratoId: "CN-00203", jiraId: "IMPSE",   tecnologia: "Salesforce CRM",       horasLimite: 70,  estado: "Activo",   fechaInicio: "2025-09-01", fechaVencimiento: "2026-08-31", renovable: true  },
+  { id: 9,  nombre: "Coopealianza",                tipo: "Soporte Evolutivo",           tribu: "Bulwak",  po: "Solange Meza",      contratoId: "CN-00144", jiraId: "",        tecnologia: "Oracle CRM",           horasLimite: 30,  estado: "Activo",   fechaInicio: "2024-06-01", fechaVencimiento: "2026-05-31", renovable: true  },
+  { id: 10, nombre: "BCCR Migración Adobe",        tipo: "Proyecto",                    tribu: "Dunamis", po: "Hugo Brenes",        contratoId: "CN-00200", jiraId: "",        tecnologia: "Adobe",                horasLimite: 800, estado: "Activo",   fechaInicio: "2026-01-15", fechaVencimiento: "2026-07-15", renovable: false },
 ];
 
 // Disponibilidad % bruta semilla (legacy - se mantiene para Forecast/Simulador)
@@ -3053,18 +3062,18 @@ export default function App() {
 
         {/* Page content */}
         <div className="xt-padding flex-1 p-6 lg:p-8">
-          {view === "Colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
-          {view === "Parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
-          {view === "Contratos"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
-          {view === "Dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "Yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "Bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "Dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
-          {view === "Utilizacion"   && <ModuloUtilizacion colaboradores={colaboradores} asignaciones={asignaciones} ausencias={ausencias} calendar={calendar} servicios={servicios} params={params} setParams={setParams} />}
-          {view === "Asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
-          {view === "Forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
-          {view === "Simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
-          {view === "Alertas"       && <ModuloAlertas alertas={alertas} onNavigate={navigate} />}
+          {view === "alertas"       && <ModuloAlertas alertas={alertas} onNavigate={navigate} />}
+          {view === "dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
+          {view === "utilizacion"   && <ModuloUtilizacion colaboradores={colaboradores} asignaciones={asignaciones} ausencias={ausencias} calendar={calendar} servicios={servicios} params={params} setParams={setParams} />}
+          {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
+          {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
+          {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
+          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
         </div>
       </div>
     </div>
