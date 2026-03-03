@@ -1,7 +1,5 @@
-import dynamic from "next/dynamic";
-
-const XumtechSystem = dynamic(() => import("@/components/XumtechSystem"), { ssr: false });
+import XumtechSystemWrapper from "@/components/XumtechSystemWrapper";
 
 export default function Home() {
-  return <XumtechSystem />;
+  return <XumtechSystemWrapper />;
 }
