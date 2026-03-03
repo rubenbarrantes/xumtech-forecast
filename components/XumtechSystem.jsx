@@ -2739,6 +2739,11 @@ export default function App() {
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
+  const alertas = useAlertasProactivas({ servicios, disponibilidad, ausencias, calendar });
+  const totalAlertas = alertas.deficit.length + alertas.holgura.length + alertas.vencimientos.length;
+
+  const currentView = VIEWS.find(v => v.id === view);
+
   if (loading) return (
     <div className="min-h-screen bg-slate-950 flex items-center justify-center">
       <div className="text-center space-y-3">
@@ -2747,11 +2752,6 @@ export default function App() {
       </div>
     </div>
   );
-
-  const alertas = useAlertasProactivas({ servicios, disponibilidad, ausencias, calendar });
-  const totalAlertas = alertas.deficit.length + alertas.holgura.length + alertas.vencimientos.length;
-
-  const currentView = VIEWS.find(v => v.id === view);
 
   const navigate = (id) => {
     setView(id);
