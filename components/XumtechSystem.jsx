@@ -213,8 +213,8 @@ function Btn({ children, variant = "primary", size = "md", ...props }) {
 // ─── MOTOR DE UTILIZACIÓN ─────────────────────────────────────────────────────
 
 function useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, servicios, params }) {
-  const safeParams = params || { horasNoCobrable: 11, utilObjetivo: 100, pilotoPorPersona: ["Yarigai"], tribus: ["Dunamis","Yarigai","Bulwak"], roles: ["Técnico","Funcional","PO","GA","Arquitecto","Proveedores","Gerencia"], tiposServicio: [] };
   return useMemo(() => {
+    const safeParams = params || PARAMS_SEED;
     const activos = colaboradores.filter(c => c.status === "Activo");
 
     // Capacidad disponible de una persona en un mes
@@ -289,7 +289,7 @@ function useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, serv
       utilizacionPorPersona,
       utilizacionRolTribu,
     };
-  }, [colaboradores, asignaciones, ausencias, calendar, servicios, safeParams]);
+  }, [colaboradores, asignaciones, ausencias, calendar, servicios, params]);
 }
 
 // Semáforo de utilización
@@ -3083,7 +3083,7 @@ export default function App() {
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
           {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
-          {view === "Contratos"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
+          {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
           {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
           {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
           {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
