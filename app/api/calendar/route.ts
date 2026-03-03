@@ -17,6 +17,20 @@ export async function GET() {
   }
 }
 
+export async function POST(req: Request) {
+  try {
+    const b = await req.json();
+    await sql`
+      INSERT INTO calendar (mes, label, dias_laborales, feriados, dif20)
+      VALUES (${b.mes}, ${b.label}, ${b.diasLaborales}, ${b.feriados}, ${b.dif20})
+      ON CONFLICT (mes) DO NOTHING
+    `;
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
 export async function PUT(req: Request) {
   try {
     const b = await req.json();
@@ -25,6 +39,16 @@ export async function PUT(req: Request) {
       feriados=${b.feriados}, dif20=${b.dif20}
       WHERE mes=${b.mes}
     `;
+    return NextResponse.json({ ok: true });
+  } catch (error) {
+    return NextResponse.json({ error: String(error) }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: Request) {
+  try {
+    const { mes } = await req.json();
+    await sql`DELETE FROM calendar WHERE mes=${mes}`;
     return NextResponse.json({ ok: true });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

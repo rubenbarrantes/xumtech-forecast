@@ -330,14 +330,23 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
     c.name.toLowerCase().includes(search.toLowerCase())
   );
 
-  const handleAddColab = () => {
+  const handleAddColab = async () => {
     if (!form.name.trim()) return;
-    setColaboradores(p => [...p, { ...form, id: Date.now(), horasDia: Number(form.horasDia) }]);
+    const body = { ...form, horasDia: Number(form.horasDia) };
+    const res = await fetch("/api/colaboradores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setColaboradores(p => [...p, saved]);
     setModalOpen(false);
     setForm({ name: "", rolPrincipal: "Técnico", tribu: "Dunamis", status: "Activo", email: "", horasDia: 8 });
   };
 
-  const handleToggleStatus = (id) => setColaboradores(p => p.map(c => c.id === id ? { ...c, status: c.status === "Activo" ? "Inactivo" : "Activo" } : c));
+  const handleToggleStatus = async (id) => {
+    const colab = colaboradores.find(c => c.id === id);
+    if (!colab) return;
+    const updated = { ...colab, status: colab.status === "Activo" ? "Inactivo" : "Activo" };
+    await fetch("/api/colaboradores", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+    setColaboradores(p => p.map(c => c.id === id ? updated : c));
+  };
 
   const openNuevaAusencia = (nombre) => {
     setAusenciaForm({ ...AUSENCIA_FORM_EMPTY, mes: calDesc[0]?.mes || "2026-01" });
@@ -349,22 +358,27 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
     setAusenciaModal({ nombre: a.colaborador, editId: a.id });
   };
 
-  const handleSaveAusencia = () => {
+  const handleSaveAusencia = async () => {
     if (!ausenciaModal) return;
     const cal = calendar.find(c => c.mes === ausenciaForm.mes);
     const max = cal ? cal.diasLaborales : 20;
     if (Number(ausenciaForm.dias) > max) return alert(`Máximo ${max} días laborales en ${cal?.label}`);
     if (Number(ausenciaForm.dias) < 1) return alert("Mínimo 1 día");
+    const body = { ...ausenciaForm, dias: Number(ausenciaForm.dias), colaborador: ausenciaModal.nombre };
     if (ausenciaModal.editId) {
-      setAusencias(p => p.map(a => a.id === ausenciaModal.editId ? { ...a, ...ausenciaForm, dias: Number(ausenciaForm.dias) } : a));
+      await fetch("/api/ausencias", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: ausenciaModal.editId }) });
+      setAusencias(p => p.map(a => a.id === ausenciaModal.editId ? { ...a, ...body } : a));
     } else {
-      setAusencias(p => [...p, { ...ausenciaForm, id: Date.now(), colaborador: ausenciaModal.nombre, dias: Number(ausenciaForm.dias) }]);
+      const res = await fetch("/api/ausencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const saved = await res.json();
+      setAusencias(p => [...p, saved]);
     }
     setAusenciaModal(null);
   };
 
-  const handleDeleteAusencia = (id) => {
+  const handleDeleteAusencia = async (id) => {
     if (!confirm("¿Eliminar esta ausencia?")) return;
+    await fetch("/api/ausencias", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     setAusencias(p => p.filter(a => a.id !== id));
   };
 
@@ -541,15 +555,42 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
 
 // ─── MÓDULO: PARÁMETROS ───────────────────────────────────────────────────────
 
-function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias }) {
+function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams }) {
   const [tab, setTab] = useState("calendario");
-  const [editCell, setEditCell] = useState(null);
   const [dispForm, setDispForm] = useState({ colaborador: "", rol: "Técnico", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 });
   const [dispModal, setDispModal] = useState(false);
+  const [calModal, setCalModal] = useState(false);
+  const [calForm, setCalForm] = useState({ mes: "", label: "", diasLaborales: 20, feriados: 0 });
+  const [savingCal, setSavingCal] = useState(null);
 
-  // Calendario edit
-  const handleCalEdit = (mes, field, val) => {
-    setCalendar(p => p.map(c => c.mes === mes ? { ...c, [field]: Number(val), dif20: field === "diasLaborales" ? Number(val) - 20 : c.dif20 } : c));
+  // Calendario: guardar cambio en BD con debounce
+  const handleCalEdit = async (mes, field, val) => {
+    const updated = calendar.map(c => c.mes === mes ? { ...c, [field]: Number(val), dif20: field === "diasLaborales" ? Number(val) - 20 : c.dif20 } : c);
+    setCalendar(updated);
+    const row = updated.find(c => c.mes === mes);
+    setSavingCal(mes);
+    await fetch("/api/calendar", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(row) });
+    setSavingCal(null);
+  };
+
+  // Calendario: agregar mes nuevo
+  const handleAddMes = async () => {
+    if (!calForm.mes || !calForm.label) return;
+    if (calendar.find(c => c.mes === calForm.mes)) return alert("Ese mes ya existe");
+    const body = { ...calForm, diasLaborales: Number(calForm.diasLaborales), feriados: Number(calForm.feriados), dif20: Number(calForm.diasLaborales) - 20 };
+    const res = await fetch("/api/calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    if (res.ok) {
+      setCalendar(p => [...p, body].sort((a, b) => a.mes.localeCompare(b.mes)));
+      setCalModal(false);
+      setCalForm({ mes: "", label: "", diasLaborales: 20, feriados: 0 });
+    }
+  };
+
+  // Calendario: eliminar mes
+  const handleDeleteMes = async (mes) => {
+    if (!confirm(`¿Eliminar el mes ${mes}? Esto afectará asignaciones y ausencias registradas en ese mes.`)) return;
+    await fetch("/api/calendar", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ mes }) });
+    setCalendar(p => p.filter(c => c.mes !== mes));
   };
 
   // Disponibilidad bruta: total por persona por mes
@@ -588,52 +629,134 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-1 border-b border-slate-700/50 pb-1">
-        {[["calendario", "?? Calendario"], ["disponibilidad", "?? Disponibilidad Bruta"], ["neto", "?? Disponibilidad Neta"]].map(([id, label]) => (
+      <div className="flex gap-1 border-b border-slate-700/50 pb-1 flex-wrap">
+        {[["calendario", "📅 Calendario"], ["parametros", "⚙️ Parámetros"], ["disponibilidad", "📊 Disponibilidad Bruta"], ["neto", "📈 Disponibilidad Neta"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700 border-b-transparent" : "text-slate-400 hover:text-white"}`}>{label}</button>
         ))}
       </div>
 
+      {/* TAB: PARÁMETROS GLOBALES */}
+      {tab === "parametros" && (
+        <div className="space-y-6">
+          <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Utilización</p>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Objetivo de utilización (%)</label>
+                <input type="number" min="50" max="120" value={params.utilObjetivo}
+              onChange={e => {
+                  const updated = { ...params, utilObjetivo: Number(e.target.value) };
+                  setParams(updated);
+                  fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                }}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500" />
+              </div>
+              <div>
+                <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Horas no cobrables por persona/mes</label>
+                <input type="number" min="0" max="40" value={params.horasNoCobrable}
+              onChange={e => {
+                  const updated = { ...params, horasNoCobrable: Number(e.target.value) };
+                  setParams(updated);
+                  fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                }}
+                  className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500" />
+              </div>
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Planificación por persona (Piloto)</p>
+            <p className="text-xs text-slate-500">Las tribus marcadas usan planificación por persona en lugar de por rol.</p>
+            <div className="flex flex-wrap gap-2">
+              {["Dunamis", "Yarigai", "Bulwak"].map(t => {
+                const activo = params.pilotoPorPersona.includes(t);
+                return (
+                  <button key={t} onClick={() => {
+                    const newPiloto = activo ? params.pilotoPorPersona.filter(x => x !== t) : [...params.pilotoPorPersona, t];
+                    const updated = { ...params, pilotoPorPersona: newPiloto };
+                    setParams(updated);
+                    fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                  }} className={`px-4 py-2 rounded-lg text-sm font-medium border transition-colors ${activo ? "bg-blue-600 text-white border-blue-600" : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"}`}>
+                    {activo ? "✓ " : ""}{t}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Roles del sistema</p>
+            <p className="text-xs text-slate-500">Roles disponibles: {ROLES_DEFAULT.join(", ")}</p>
+            <p className="text-xs text-slate-600 italic">Edición de roles próximamente disponible.</p>
+          </div>
+
+          <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipos de servicio</p>
+            <p className="text-xs text-slate-500">Tipos disponibles: {TIPOS_SERVICIO.join(", ")}</p>
+            <p className="text-xs text-slate-600 italic">Edición de tipos próximamente disponible.</p>
+          </div>
+        </div>
+      )}
+
       {/* TAB: CALENDARIO */}
       {tab === "calendario" && (
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">Configura los días laborales reales por mes. Modifica los feriados y el sistema recalcula automáticamente.</p>
+          <div className="flex items-center justify-between">
+            <p className="text-xs text-slate-500">Configura los días laborales reales por mes. Los cambios se guardan automáticamente.</p>
+            <Btn size="sm" onClick={() => setCalModal(true)}>+ Agregar mes</Btn>
+          </div>
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
-                <tr>{["Mes", "Días calendario", "Feriados / Días empresa", "Días laborales netos", "Dif. vs 20 días"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+                <tr>{["Mes", "Feriados", "Días laborales netos", "Dif. vs 20 días", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
               <tbody>
                 {calendar.map(c => (
                   <tr key={c.mes} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                    <td className="px-4 py-2.5 text-white font-medium">{c.label}</td>
-                    <td className="px-4 py-2.5 text-slate-400 font-mono">—</td>
-                    <td className="px-4 py-2.5">
-                      <input
-                        type="number" min="0" max="10"
-                        value={c.feriados}
-                        onChange={e => handleCalEdit(c.mes, "feriados", e.target.value)}
-                        className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
-                      />
+                    <td className="px-4 py-2.5 text-white font-medium">
+                      {c.label}
+                      {savingCal === c.mes && <span className="ml-2 text-xs text-blue-400 animate-pulse">guardando...</span>}
                     </td>
                     <td className="px-4 py-2.5">
-                      <input
-                        type="number" min="1" max="23"
-                        value={c.diasLaborales}
+                      <input type="number" min="0" max="10" value={c.feriados}
+                        onChange={e => handleCalEdit(c.mes, "feriados", e.target.value)}
+                        className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-blue-500" />
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <input type="number" min="1" max="23" value={c.diasLaborales}
                         onChange={e => handleCalEdit(c.mes, "diasLaborales", e.target.value)}
-                        className="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500"
-                      />
+                        className="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500" />
                     </td>
                     <td className="px-4 py-2.5">
                       <span className={`font-mono text-sm font-bold ${c.dif20 > 0 ? "text-emerald-400" : c.dif20 < 0 ? "text-red-400" : "text-slate-400"}`}>
                         {c.dif20 > 0 ? "+" : ""}{c.dif20}
                       </span>
                     </td>
+                    <td className="px-4 py-2.5">
+                      <button onClick={() => handleDeleteMes(c.mes)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Eliminar</button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          <Modal open={calModal} onClose={() => setCalModal(false)} title="Agregar mes al calendario">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Mes (YYYY-MM)" value={calForm.mes} onChange={e => setCalForm(f => ({ ...f, mes: e.target.value }))} placeholder="2026-07" />
+                <Input label="Etiqueta" value={calForm.label} onChange={e => setCalForm(f => ({ ...f, label: e.target.value }))} placeholder="Jul 2026" />
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <Input label="Días laborales" type="number" min="1" max="23" value={calForm.diasLaborales} onChange={e => setCalForm(f => ({ ...f, diasLaborales: e.target.value }))} />
+                <Input label="Feriados" type="number" min="0" max="10" value={calForm.feriados} onChange={e => setCalForm(f => ({ ...f, feriados: e.target.value }))} />
+              </div>
+              <div className="flex justify-end gap-2 pt-2">
+                <Btn variant="ghost" onClick={() => setCalModal(false)}>Cancelar</Btn>
+                <Btn onClick={handleAddMes}>Agregar</Btn>
+              </div>
+            </div>
+          </Modal>
         </div>
       )}
 
@@ -811,9 +934,12 @@ function ModuloServicios({ servicios, setServicios, colaboradores }) {
     (s.nombre.toLowerCase().includes(search.toLowerCase()) || s.contratoId.toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!form.nombre.trim()) return;
-    setServicios(p => [...p, { ...form, id: Date.now(), horasLimite: Number(form.horasLimite), personasDedicadas: Number(form.personasDedicadas), roles: {} }]);
+    const body = { ...form, horasLimite: Number(form.horasLimite), personasDedicadas: Number(form.personasDedicadas) };
+    const res = await fetch("/api/servicios", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setServicios(p => [...p, { ...saved, roles: {} }]);
     setModal(false);
     setForm({ nombre: "", tipo: "Soporte Evolutivo", tribu: "Dunamis", po: "", contratoId: "", jiraId: "", tecnologia: "", horasLimite: 0, personasDedicadas: 1, estado: "Activo", fechaInicio: "", fechaVencimiento: "", renovable: true });
   };
@@ -1385,18 +1511,22 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       }
     }
 
-    setAsignaciones(p => [...p, {
+    const body = {
       ...form,
-      id: Date.now(),
       servicioId: Number(form.servicioId),
       horas: Number(form.horas),
       colaborador: esPiloto ? form.colaborador : null,
-    }]);
+    };
+    const res = await fetch("/api/asignaciones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setAsignaciones(p => [...p, saved]);
     setModal(false);
     setForm(ASIG_FORM_DEFAULT);
   };
 
-  const handleDelete = (id) => setAsignaciones(p => p.filter(a => a.id !== id));
+  const handleDelete = async (id) => {
+    await fetch("/api/asignaciones", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setAsignaciones(p => p.filter(a => a.id !== id));
 
   // Filtrar asignaciones para mostrar
   const filtered = asignaciones.filter(a =>
@@ -2730,12 +2860,14 @@ export default function App() {
       fetch("/api/asignaciones").then(r => r.json()),
       fetch("/api/ausencias").then(r => r.json()),
       fetch("/api/calendar").then(r => r.json()),
-    ]).then(([cols, servs, asigs, aus, cal]) => {
+      fetch("/api/params").then(r => r.json()),
+    ]).then(([cols, servs, asigs, aus, cal, par]) => {
       if (Array.isArray(cols) && cols.length > 0) setColaboradores(cols);
       if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
       if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
       if (Array.isArray(aus) && aus.length > 0) setAusencias(aus);
       if (Array.isArray(cal) && cal.length > 0) setCalendar(cal);
+      if (par && !par.error) setParams(par);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -2864,7 +2996,7 @@ export default function App() {
           {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} />}
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} />}
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} />}
-          {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} />}
+          {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
           {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} />}
           {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} />}
           {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} />}
