@@ -2721,6 +2721,32 @@ export default function App() {
   const [ausencias, setAusencias] = useState(AUSENCIAS_SEED);
   const [asignaciones, setAsignaciones] = useState(ASIGNACIONES_SEED);
   const [params, setParams] = useState(PARAMS_SEED);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    Promise.all([
+      fetch("/api/colaboradores").then(r => r.json()),
+      fetch("/api/servicios").then(r => r.json()),
+      fetch("/api/asignaciones").then(r => r.json()),
+      fetch("/api/ausencias").then(r => r.json()),
+      fetch("/api/calendar").then(r => r.json()),
+    ]).then(([cols, servs, asigs, aus, cal]) => {
+      if (Array.isArray(cols) && cols.length > 0) setColaboradores(cols);
+      if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
+      if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
+      if (Array.isArray(aus) && aus.length > 0) setAusencias(aus);
+      if (Array.isArray(cal) && cal.length > 0) setCalendar(cal);
+    }).catch(console.error).finally(() => setLoading(false));
+  }, []);
+
+  if (loading) return (
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center">
+      <div className="text-center space-y-3">
+        <div className="w-10 h-10 rounded-xl bg-blue-600 flex items-center justify-center text-sm font-bold mx-auto animate-pulse">XT</div>
+        <p className="text-slate-400 text-sm">Cargando sistema...</p>
+      </div>
+    </div>
+  );
 
   const alertas = useAlertasProactivas({ servicios, disponibilidad, ausencias, calendar });
   const totalAlertas = alertas.deficit.length + alertas.holgura.length + alertas.vencimientos.length;
