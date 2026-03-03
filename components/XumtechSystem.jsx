@@ -88,9 +88,12 @@ const DISPONIBILIDAD_SEED = [
 
 // Parámetros globales de utilización
 const PARAMS_SEED = {
-  utilObjetivo: 100,       // % objetivo de utilización
-  horasNoCobrable: 11,     // default horas no cobrables por persona/mes
-  pilotoPorPersona: ["Yarigai"], // tribus con planificación por persona
+  utilObjetivo: 100,
+  horasNoCobrable: 11,
+  pilotoPorPersona: ["Yarigai"],
+  tribus: ["Dunamis", "Yarigai", "Bulwak"],
+  roles: ["Técnico", "Funcional", "PO", "GA", "Arquitecto", "Proveedores", "Gerencia"],
+  tiposServicio: ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Proyecto", "Talento Dedicado", "Bolsa de Horas"],
 };
 
 // Asignaciones seed — rol+servicio+mes (Dunamis/Bulwak) y persona+servicio+mes (Yarigai)
@@ -311,7 +314,7 @@ function BarUtil({ pct, objetivo }) {
 
 const AUSENCIA_FORM_EMPTY = { mes: "2026-01", fecha: "", dias: 1, tipo: "Vacaciones", notas: "" };
 
-function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAusencias, calendar }) {
+function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAusencias, calendar, params }) {
   const [search, setSearch] = useState("");
   const [tribFilter, setTribFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("Activo");
@@ -388,7 +391,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-4 gap-3">
-        {["Todas", ...TRIBUS_DEFAULT].map(t => {
+        {["Todas", ...params.tribus].map(t => {
           const count = colaboradores.filter(c => (t === "Todas" ? true : c.tribu === t) && c.status === "Activo").length;
           return <KPI key={t} title={t === "Todas" ? "Total activos" : t} value={count} color={t === "Todas" ? "blue" : "green"} />;
         })}
@@ -397,7 +400,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
       <div className="flex flex-wrap items-center gap-3">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar colaborador..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
         <div className="flex gap-1">
-          {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
+          {["Todas", ...params.tribus].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
         </div>
         <div className="flex gap-1">
           {["Todos", "Activo", "Inactivo"].map(s => <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{s}</button>)}
@@ -450,8 +453,8 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
           <Input label="Nombre completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nombre Apellido" />
           <Input label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@xumtech.com" />
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Rol principal" value={form.rolPrincipal} onChange={e => setForm(f => ({ ...f, rolPrincipal: e.target.value }))} options={ROLES_DEFAULT} />
-            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+            <Select label="Rol principal" value={form.rolPrincipal} onChange={e => setForm(f => ({ ...f, rolPrincipal: e.target.value }))} options={params.roles} />
+            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={params.tribus} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={["Activo", "Inactivo"]} />
@@ -549,6 +552,18 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
           </div>
         </div>
       </Modal>
+    </div>
+  );
+}
+
+// Helper: inline add item
+function AddItemInline({ placeholder, onAdd }) {
+  const [val, setVal] = useState("");
+  return (
+    <div className="flex items-center gap-1">
+      <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && val.trim()) { onAdd(val.trim()); setVal(""); } }}
+        placeholder={placeholder} className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-32" />
+      <button onClick={() => { if (val.trim()) { onAdd(val.trim()); setVal(""); } }} className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-lg">+</button>
     </div>
   );
 }
@@ -685,15 +700,69 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
           </div>
 
           <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
+            <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tribus</p>
+            <div className="flex flex-wrap gap-2">
+              {params.tribus.map(t => (
+                <div key={t} className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+                  <span className="text-sm text-white">{t}</span>
+                  <button onClick={() => {
+                    const updated = { ...params, tribus: params.tribus.filter(x => x !== t) };
+                    setParams(updated);
+                    fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                  }} className="text-red-400 hover:text-red-300 text-xs ml-1">✕</button>
+                </div>
+              ))}
+              <AddItemInline placeholder="Nueva tribu..." onAdd={val => {
+                if (!val || params.tribus.includes(val)) return;
+                const updated = { ...params, tribus: [...params.tribus, val] };
+                setParams(updated);
+                fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+              }} />
+            </div>
+          </div>
+
+          <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Roles del sistema</p>
-            <p className="text-xs text-slate-500">Roles disponibles: {ROLES_DEFAULT.join(", ")}</p>
-            <p className="text-xs text-slate-600 italic">Edición de roles próximamente disponible.</p>
+            <div className="flex flex-wrap gap-2">
+              {params.roles.map(r => (
+                <div key={r} className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+                  <span className="text-sm text-white">{r}</span>
+                  <button onClick={() => {
+                    const updated = { ...params, roles: params.roles.filter(x => x !== r) };
+                    setParams(updated);
+                    fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                  }} className="text-red-400 hover:text-red-300 text-xs ml-1">✕</button>
+                </div>
+              ))}
+              <AddItemInline placeholder="Nuevo rol..." onAdd={val => {
+                if (!val || params.roles.includes(val)) return;
+                const updated = { ...params, roles: [...params.roles, val] };
+                setParams(updated);
+                fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+              }} />
+            </div>
           </div>
 
           <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tipos de servicio</p>
-            <p className="text-xs text-slate-500">Tipos disponibles: {TIPOS_SERVICIO.join(", ")}</p>
-            <p className="text-xs text-slate-600 italic">Edición de tipos próximamente disponible.</p>
+            <div className="flex flex-wrap gap-2">
+              {params.tiposServicio.map(t => (
+                <div key={t} className="flex items-center gap-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-1.5">
+                  <span className="text-sm text-white">{t}</span>
+                  <button onClick={() => {
+                    const updated = { ...params, tiposServicio: params.tiposServicio.filter(x => x !== t) };
+                    setParams(updated);
+                    fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+                  }} className="text-red-400 hover:text-red-300 text-xs ml-1">✕</button>
+                </div>
+              ))}
+              <AddItemInline placeholder="Nuevo tipo..." onAdd={val => {
+                if (!val || params.tiposServicio.includes(val)) return;
+                const updated = { ...params, tiposServicio: [...params.tiposServicio, val] };
+                setParams(updated);
+                fetch("/api/params", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
+              }} />
+            </div>
           </div>
         </div>
       )}
@@ -816,8 +885,8 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             <div className="space-y-4">
               <Select label="Colaborador" value={dispForm.colaborador} onChange={e => setDispForm(f => ({ ...f, colaborador: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...activos.map(n => ({ value: n, label: n }))]} />
               <div className="grid grid-cols-2 gap-3">
-                <Select label="Rol" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
-                <Select label="Tribu" value={dispForm.tribu} onChange={e => setDispForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+                <Select label="Rol" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={params.roles} />
+                <Select label="Tribu" value={dispForm.tribu} onChange={e => setDispForm(f => ({ ...f, tribu: e.target.value }))} options={params.tribus} />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Select label="Mes" value={dispForm.mes} onChange={e => setDispForm(f => ({ ...f, mes: e.target.value }))} options={calendar.map(c => ({ value: c.mes, label: c.label }))} />
@@ -916,9 +985,8 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
 // ─── MÓDULO: MAESTRO DE SERVICIOS ─────────────────────────────────────────────
 
-const ROLES_SERVICIO_EMPTY = ROLES_DEFAULT.reduce((acc, r) => ({ ...acc, [r]: false }), {});
-
-function ModuloServicios({ servicios, setServicios, colaboradores }) {
+function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
+  const ROLES_SERVICIO_EMPTY = params.roles.reduce((acc, r) => ({ ...acc, [r]: false }), {});
   const [search, setSearch] = useState("");
   const [tribFilter, setTribFilter] = useState("Todas");
   const [modal, setModal] = useState(false);
@@ -963,13 +1031,13 @@ function ModuloServicios({ servicios, setServicios, colaboradores }) {
     <div className="space-y-5">
       <div className="grid grid-cols-4 gap-3">
         <KPI title="Total servicios" value={servicios.filter(s => s.estado === "Activo").length} color="blue" />
-        {TRIBUS_DEFAULT.map(t => <KPI key={t} title={t} value={servicios.filter(s => s.tribu === t && s.estado === "Activo").length} color="green" />)}
+        {params.tribus.map(t => <KPI key={t} title={t} value={servicios.filter(s => s.tribu === t && s.estado === "Activo").length} color="green" />)}
       </div>
 
       <div className="flex flex-wrap items-center gap-3">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar servicio o contrato..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-56" />
         <div className="flex gap-1">
-          {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
+          {["Todas", ...params.tribus].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
         </div>
         <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo servicio</Btn>
       </div>
@@ -1026,8 +1094,8 @@ function ModuloServicios({ servicios, setServicios, colaboradores }) {
         <div className="space-y-4">
           <Input label="Nombre" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
-            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+            <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={params.tiposServicio} />
+            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={params.tribus} />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <Input label="ID Contrato" value={form.contratoId} onChange={e => setForm(f => ({ ...f, contratoId: e.target.value }))} placeholder="CN-00xxx" />
@@ -1061,7 +1129,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores }) {
         <div className="space-y-4">
           <p className="text-xs text-slate-500">Selecciona los roles que participan en este servicio/proyecto.</p>
           <div className="grid grid-cols-2 gap-3">
-            {ROLES_DEFAULT.map(rol => (
+            {params.roles.map(rol => (
               <label key={rol} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${rolesForm[rol] ? "border-blue-500/50 bg-blue-500/10" : "border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/60"}`}>
                 <input type="checkbox" checked={!!rolesForm[rol]} onChange={e => setRolesForm(f => ({ ...f, [rol]: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
                 <Pill label={rol} color={rol} />
@@ -1106,7 +1174,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores }) {
 
 // ─── MÓDULO: GESTIÓN DE TRIBU ─────────────────────────────────────────────────
 
-function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, colaboradores }) {
+function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, colaboradores, params }) {
   const [mesSel, setMesSel] = useState("2026-01");
   const [tab, setTab] = useState("planificacion");
 
@@ -1118,7 +1186,7 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
   const [horasPorRolServicio, setHorasPorRolServicio] = useState(() => {
     const init = {};
     tribServicios.forEach(s => {
-      ROLES_DEFAULT.forEach(r => { init[`${s.id}|${r}`] = 0; });
+      params.roles.forEach(r => { init[`${s.id}|${r}`] = 0; });
     });
     return init;
   });
@@ -1126,12 +1194,12 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
   const setHoras = (sid, rol, val) => setHorasPorRolServicio(p => ({ ...p, [`${sid}|${rol}`]: Math.max(0, Number(val)) }));
 
   // Totales por servicio
-  const totalHorasServicio = (sid) => ROLES_DEFAULT.reduce((a, r) => a + (horasPorRolServicio[`${sid}|${r}`] || 0), 0);
+  const totalHorasServicio = (sid) => params.roles.reduce((a, r) => a + (horasPorRolServicio[`${sid}|${r}`] || 0), 0);
 
   // Requerido por rol (personas equiv)
   const requeridoPorRol = useMemo(() => {
     const map = {};
-    ROLES_DEFAULT.forEach(rol => {
+    params.roles.forEach(rol => {
       const totalH = tribServicios.reduce((a, s) => a + (horasPorRolServicio[`${s.id}|${rol}`] || 0), 0);
       map[rol] = +(totalH / (diasMes * HORAS_DIA)).toFixed(3);
     });
@@ -1141,7 +1209,7 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
   // Disponible por rol en tribu
   const disponiblePorRol = useMemo(() => {
     const map = {};
-    ROLES_DEFAULT.forEach(rol => {
+    params.roles.forEach(rol => {
       const entries = disponibilidad.filter(d => d.tribu === tribu && d.rol === rol && d.mes === mesSel);
       const total = entries.reduce((a, d) => {
         const ausEntry = ausencias.find(au => au.colaborador === d.colaborador && au.mes === mesSel);
@@ -1169,7 +1237,7 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
       const diasAus = (ausencias.find(a => a.colaborador === name && a.mes === mesSel)?.dias || 0);
       const dispHoras = (diasMes - diasAus) * HORAS_DIA;
       const asigH = tribServicios.reduce((acc, s) => {
-        return acc + ROLES_DEFAULT.reduce((a, r) => a + (horasPorRolServicio[`${s.id}|${r}`] || 0), 0);
+        return acc + params.roles.reduce((a, r) => a + (horasPorRolServicio[`${s.id}|${r}`] || 0), 0);
       }, 0) / Math.max(uniquePersonas.length, 1);
       const dif = +(asigH - dispHoras).toFixed(1);
       return { name, dispHoras, asigH: +asigH.toFixed(1), dif };
@@ -1220,7 +1288,7 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
                   </div>
                 </div>
                 <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
-                  {ROLES_DEFAULT.map(rol => (
+                  {params.roles.map(rol => (
                     <div key={rol}>
                       <label className="text-xs text-slate-500 block mb-1">{rol}</label>
                       <input
@@ -1266,7 +1334,7 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
                 <tr>{["Rol", "Requerido", "+ No cobrable", "Disponible", "Diferencia"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
               <tbody>
-                {ROLES_DEFAULT.map(rol => {
+                {params.roles.map(rol => {
                   const req = requeridoPorRol[rol];
                   const disp = disponiblePorRol[rol];
                   const nc = rol === "GA" ? noCobrable : 0;
@@ -1331,7 +1399,7 @@ function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, co
 
 // ─── MÓDULO: DASHBOARD ────────────────────────────────────────────────────────
 
-function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, ausencias, alertas, onNavigate }) {
+function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, ausencias, alertas, onNavigate, params }) {
   const activos = colaboradores.filter(c => c.status === "Activo").length;
   const contratosActivos = servicios.filter(s => s.estado === "Activo").length;
   const ultimoMes = calendar[calendar.length - 1];
@@ -1339,7 +1407,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
 
   const chartData = calendar.slice(-6).map(c => {
     const row = { mes: c.label };
-    TRIBUS_DEFAULT.forEach(t => {
+    params.tribus.forEach(t => {
       row[t] = +disponibilidad.filter(d => d.tribu === t && d.mes === c.mes).reduce((acc, d) => {
         const aus = ausencias.find(a => a.colaborador === d.colaborador && a.mes === c.mes);
         const diasAus = aus ? aus.dias : 0;
@@ -1383,7 +1451,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
 
       {/* Tribu cards */}
       <div className="xt-tribu-grid grid grid-cols-1 lg:grid-cols-3 gap-4">
-        {TRIBUS_DEFAULT.map(t => {
+        {params.tribus.map(t => {
           const cnt = colaboradores.filter(c => c.tribu === t && c.status === "Activo").length;
           const srv = servicios.filter(s => s.tribu === t && s.estado === "Activo").length;
           return (
@@ -1405,7 +1473,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
       <div>
         <SectionHeader>Disponibilidad neta por tribu — últimos 6 meses</SectionHeader>
         <div className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-4 h-64">
-          {chartData.some(d => TRIBUS_DEFAULT.some(t => d[t] > 0))
+          {chartData.some(d => params.tribus.some(t => d[t] > 0))
             ? <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={chartData}>
                   <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
@@ -1413,7 +1481,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
                   <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} />
                   <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px", color: "#f8fafc" }} />
                   <Legend />
-                  {TRIBUS_DEFAULT.map(t => <Bar key={t} dataKey={t} fill={TRIBU_COLORS[t]} radius={[3, 3, 0, 0]} />)}
+                  {params.tribus.map(t => <Bar key={t} dataKey={t} fill={TRIBU_COLORS[t]} radius={[3, 3, 0, 0]} />)}
                 </BarChart>
               </ResponsiveContainer>
             : <div className="h-full flex items-center justify-center text-slate-500 text-sm">Configure disponibilidad en Parámetros para ver datos</div>
@@ -1425,7 +1493,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
       <div>
         <SectionHeader>Resumen de servicios por tipo</SectionHeader>
         <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
-          {TIPOS_SERVICIO.map(tipo => {
+          {params.tiposServicio.map(tipo => {
             const count = servicios.filter(s => s.tipo === tipo && s.estado === "Activo").length;
             if (count === 0) return null;
             return (
@@ -1468,9 +1536,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
   const esProyecto = servicio?.tipo === "Proyecto";
 
   // Validaciones al guardar
-  const handleAdd = () => {
-    setError("");
-    if (!form.servicioId) return setError("Selecciona un servicio");
+  const handleAdd = async () => {
     if (!form.horas || form.horas <= 0) return setError("Las horas deben ser mayor a 0");
     if (esPiloto && !form.colaborador) return setError("Selecciona un colaborador");
 
@@ -1527,6 +1593,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
   const handleDelete = async (id) => {
     await fetch("/api/asignaciones", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     setAsignaciones(p => p.filter(a => a.id !== id));
+  };
 
   // Filtrar asignaciones para mostrar
   const filtered = asignaciones.filter(a =>
@@ -1535,7 +1602,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
   );
 
   // Resumen rápido del mes seleccionado
-  const resumenMes = TRIBUS_DEFAULT.map(tribu => {
+  const resumenMes = params.tribus.map(tribu => {
     const roles = [...new Set(colaboradores.filter(c => c.tribu === tribu && c.status === "Activo").map(c => c.rolPrincipal))];
     const totalDisp = roles.reduce((s, rol) => s + motor.capacidadRolTribu(tribu, rol, mesFilter), 0);
     const totalAsig = asignaciones.filter(a => a.tribu === tribu && a.mes === mesFilter).reduce((s, a) => s + a.horas, 0);
@@ -1580,7 +1647,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
           ))}
         </div>
         <div className="flex gap-1 ml-auto">
-          {["Todas", ...TRIBUS_DEFAULT].map(t => (
+          {["Todas", ...params.tribus].map(t => (
             <button key={t} onClick={() => setTribFilter(t)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${tribFilter === t ? "bg-slate-600 text-white border-slate-500" : "bg-slate-800 text-slate-400 border-slate-700 hover:bg-slate-700"}`}>
               {t}
@@ -1640,8 +1707,8 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       <Modal open={modal} onClose={() => setModal(false)} title="Nueva asignación de horas">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value, colaborador: "" }))} options={TRIBUS_DEFAULT} />
-            <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
+            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value, colaborador: "" }))} options={params.tribus} />
+            <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))} options={params.roles} />
           </div>
 
           {/* Colaborador — solo si es tribu piloto */}
@@ -1735,7 +1802,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
 
 // ─── MÓDULO: FORECAST DE CAPACIDAD ───────────────────────────────────────────
 
-function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, calendar }) {
+function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, calendar, params }) {
   const [horizonte, setHorizonte] = useState(6);
   const [tribFocus, setTribFocus] = useState("Todas");
 
@@ -1779,7 +1846,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
   };
 
   // Tabla de forecast por tribu x mes
-  const forecastRows = (tribFocus === "Todas" ? TRIBUS_DEFAULT : [tribFocus]).map(tribu => {
+  const forecastRows = (tribFocus === "Todas" ? params.tribus : [tribFocus]).map(tribu => {
     const mesesData = mesesForecast.map(c => {
       const demanda = calcDemanda(tribu, c.mes);
       const disp = calcDisponibilidad(tribu, c.mes);
@@ -1825,7 +1892,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
   // Chart data para el área chart
   const chartData = mesesForecast.map(c => {
     const row = { mes: c.label };
-    TRIBUS_DEFAULT.forEach(t => {
+    params.tribus.forEach(t => {
       if (tribFocus === "Todas" || tribFocus === t) {
         row[`${t}_disp`] = calcDisponibilidad(t, c.mes);
         row[`${t}_dem`] = calcDemanda(t, c.mes);
@@ -1834,14 +1901,14 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
     return row;
   });
 
-  const tribsToShow = tribFocus === "Todas" ? TRIBUS_DEFAULT : [tribFocus];
+  const tribsToShow = tribFocus === "Todas" ? params.tribus : [tribFocus];
 
   return (
     <div className="space-y-6">
       {/* Controls */}
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1">
-          {["Todas", ...TRIBUS_DEFAULT].map(t => (
+          {["Todas", ...params.tribus].map(t => (
             <button key={t} onClick={() => setTribFocus(t)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFocus === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>
               {t}
@@ -2042,7 +2109,7 @@ const SIM_FORM_DEFAULT = {
   duracionMeses: 6,
 };
 
-function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, calendar }) {
+function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, calendar, params }) {
   const [form, setForm] = useState(SIM_FORM_DEFAULT);
   const [simActivo, setSimActivo] = useState(false);
   const [horizonte, setHorizonte] = useState(6);
@@ -2191,8 +2258,8 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
             <div className="space-y-3">
               <Input label="Nombre del proyecto" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
               <div className="grid grid-cols-2 gap-3">
-                <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-                <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
+                <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={params.tribus} />
+                <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={params.tiposServicio} />
               </div>
 
               {form.tipo === "Talento Dedicado"
@@ -2404,7 +2471,7 @@ function ModuloUtilizacion({ colaboradores, asignaciones, ausencias, calendar, s
   const activos = colaboradores.filter(c => c.status === "Activo");
 
   // Datos por tribu
-  const dataTribus = TRIBUS_DEFAULT.map(tribu => {
+  const dataTribus = params.tribus.map(tribu => {
     const roles = [...new Set(activos.filter(c => c.tribu === tribu).map(c => c.rolPrincipal))];
 
     const rolesData = roles.map(rol => {
@@ -2803,7 +2870,7 @@ function useAlertasProactivas({ servicios, disponibilidad, ausencias, calendar }
     const holgura = [];
     const vencimientos = [];
 
-    TRIBUS_DEFAULT.forEach(tribu => {
+    params.tribus.forEach(tribu => {
       let consHolgura = 0;
       meses.forEach((c, i) => {
         const dem = calcDem(tribu, c.mes);
@@ -2990,17 +3057,17 @@ export default function App() {
         {/* Page content */}
         <div className="xt-padding flex-1 p-6 lg:p-8">
           {view === "alertas"       && <ModuloAlertas alertas={alertas} onNavigate={navigate} />}
-          {view === "dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} />}
+          {view === "dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "utilizacion"   && <ModuloUtilizacion colaboradores={colaboradores} asignaciones={asignaciones} ausencias={ausencias} calendar={calendar} servicios={servicios} params={params} setParams={setParams} />}
           {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
-          {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} />}
-          {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} />}
-          {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} />}
+          {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
           {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
-          {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} />}
-          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} />}
-          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} />}
-          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} />}
+          {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
+          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
         </div>
       </div>
     </div>

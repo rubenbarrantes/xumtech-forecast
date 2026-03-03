@@ -21,6 +21,9 @@ export async function GET() {
         utilObjetivo: 100,
         horasNoCobrable: 11,
         pilotoPorPersona: ["Yarigai"],
+        tribus: ["Dunamis", "Yarigai", "Bulwak"],
+        roles: ["Técnico", "Funcional", "PO", "GA", "Arquitecto", "Proveedores", "Gerencia"],
+        tiposServicio: ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Proyecto", "Talento Dedicado", "Bolsa de Horas"],
       });
     }
     const result: any = {};
@@ -29,6 +32,9 @@ export async function GET() {
       utilObjetivo: result.utilObjetivo ?? 100,
       horasNoCobrable: result.horasNoCobrable ?? 11,
       pilotoPorPersona: result.pilotoPorPersona ?? ["Yarigai"],
+      tribus: result.tribus ?? ["Dunamis", "Yarigai", "Bulwak"],
+      roles: result.roles ?? ["Técnico", "Funcional", "PO", "GA", "Arquitecto", "Proveedores", "Gerencia"],
+      tiposServicio: result.tiposServicio ?? ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Proyecto", "Talento Dedicado", "Bolsa de Horas"],
     });
   } catch (error) {
     return NextResponse.json({ error: String(error) }, { status: 500 });

@@ -94,6 +94,20 @@ export async function GET() {
       ('Yarigai','Técnico','Ruben Barrantes',10,'2026-03',70)
     `;
 
+    // Params
+    const paramDefaults = {
+      utilObjetivo: 100,
+      horasNoCobrable: 11,
+      pilotoPorPersona: ["Yarigai"],
+      tribus: ["Dunamis", "Yarigai", "Bulwak"],
+      roles: ["Técnico", "Funcional", "PO", "GA", "Arquitecto", "Proveedores", "Gerencia"],
+      tiposServicio: ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Proyecto", "Talento Dedicado", "Bolsa de Horas"],
+    };
+    await sql`CREATE TABLE IF NOT EXISTS params (key TEXT PRIMARY KEY, value JSONB NOT NULL)`;
+    for (const [key, value] of Object.entries(paramDefaults)) {
+      await sql`INSERT INTO params (key, value) VALUES (${key}, ${JSON.stringify(value)}) ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value`;
+    }
+
     return NextResponse.json({ ok: true, message: "Seed cargado correctamente" });
   } catch (error) {
     return NextResponse.json({ ok: false, error: String(error) }, { status: 500 });
