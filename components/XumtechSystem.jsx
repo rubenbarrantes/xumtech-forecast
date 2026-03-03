@@ -547,12 +547,15 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
     return map;
   }, [disponibilidad]);
 
-  const handleAddDisp = () => {
+  const handleAddDisp = async () => {
     if (!dispForm.colaborador) return;
     const k = `${dispForm.colaborador}|${dispForm.mes}`;
     const current = totalPorPersonaMes[k] || 0;
     if (current + Number(dispForm.porcentaje) > 100) { alert(`⚠️ Supera el 100%. Ya tiene ${current}% asignado en ${dispForm.mes}`); return; }
-    setDisponibilidad(p => [...p, { ...dispForm, porcentaje: Number(dispForm.porcentaje) }]);
+    const body = { ...dispForm, porcentaje: Number(dispForm.porcentaje) };
+    const res = await fetch("/api/disponibilidad", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setDisponibilidad(p => [...p, saved]);
     setDispModal(false);
   };
 
@@ -801,7 +804,10 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
                         <span className={`font-mono text-xs font-bold px-2 py-0.5 rounded ${total === 100 ? "text-emerald-400 bg-emerald-900/30" : total > 100 ? "text-red-400 bg-red-900/30" : "text-amber-400 bg-amber-900/30"}`}>{total}%</span>
                       </td>
                       <td className="px-4 py-2.5">
-                        <button onClick={() => setDisponibilidad(p => p.filter((_, j) => j !== i))} className="text-xs text-red-400 hover:text-red-300">✕</button>
+                        <button onClick={async () => {
+                          if (d.id) await fetch("/api/disponibilidad", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: d.id }) });
+                          setDisponibilidad(p => p.filter((_, j) => j !== i));
+                        }} className="text-xs text-red-400 hover:text-red-300">✕</button>
                       </td>
                     </tr>
                   );
@@ -1104,376 +1110,224 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
 // ─── MÓDULO: GESTIÓN DE TRIBU ─────────────────────────────────────────────────
 
-function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad, ausencias, colaboradores, params }) {
+function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, colaboradores, params }) {
 
-  const [mesSel, setMesSel] = useState(() => {
-    const hoy = new Date();
-    return `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
-  });
-  const [tab, setTab] = useState("utilizacion");
-
-  const motor = useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, servicios, params });
-
-  const cal = calendar.find(c => c.mes === mesSel);
-  const diasMes = cal?.diasLaborales || 20;
+  const [mesSel, setMesSel] = useState("2026-01");
+  const [tab, setTab] = useState("planificacion");
 
   const tribServicios = servicios.filter(s => s.tribu === tribu && s.estado === "Activo");
-  const tribColabs = colaboradores.filter(c => c.tribu === tribu && c.status === "Activo");
-  const tribAsigs = asignaciones.filter(a => a.tribu === tribu && a.mes === mesSel);
+  const cal = calendar.find(c => c.mes === mesSel);
+  const diasMes = cal ? cal.diasLaborales : 20;
 
-  // ── Utilización real por rol ─────────────────────────────────────────────────
-  const rolesData = ROLES_DEFAULT.map(rol => {
-    const util = motor.utilizacionRolTribu(tribu, rol, mesSel);
-    return { rol, ...util };
-  }).filter(r => r.personas > 0);
+  // Horas por rol (mock editable)
+  const [horasPorRolServicio, setHorasPorRolServicio] = useState(() => {
+    const init = {};
+    tribServicios.forEach(s => {
+      ROLES_DEFAULT.forEach(r => { init[`${s.id}|${r}`] = 0; });
+    });
+    return init;
+  });
 
-  const totalDisp = rolesData.reduce((s, r) => s + r.disponible, 0);
-  const totalAsig = rolesData.reduce((s, r) => s + r.asignado, 0);
-  const pctGlobal = totalDisp > 0 ? Math.round((totalAsig / totalDisp) * 100) : 0;
+  const setHoras = (sid, rol, val) => setHorasPorRolServicio(p => ({ ...p, [`${sid}|${rol}`]: Math.max(0, Number(val)) }));
 
-  // ── Por colaborador ──────────────────────────────────────────────────────────
-  const porPersona = tribColabs.map(colab => {
-    const util = motor.utilizacionPorPersona(colab, mesSel);
-    const ausColab = ausencias.filter(a => a.colaborador === colab.name && a.mes === mesSel)
-      .reduce((s, a) => s + (a.dias || 0), 0);
-    return { colab, ...util, ausencias: ausColab };
-  }).sort((a, b) => b.pct - a.pct);
+  // Totales por servicio
+  const totalHorasServicio = (sid) => ROLES_DEFAULT.reduce((a, r) => a + (horasPorRolServicio[`${sid}|${r}`] || 0), 0);
 
-  // ── Chart data ───────────────────────────────────────────────────────────────
-  const chartData = ROLES_DEFAULT
-    .map(rol => {
-      const util = motor.utilizacionRolTribu(tribu, rol, mesSel);
-      return { rol, disponible: util.disponible, asignado: util.asignado, pct: util.pct, personas: util.personas };
-    })
-    .filter(r => r.personas > 0 || r.asignado > 0);
+  // Requerido por rol (personas equiv)
+  const requeridoPorRol = useMemo(() => {
+    const map = {};
+    ROLES_DEFAULT.forEach(rol => {
+      const totalH = tribServicios.reduce((a, s) => a + (horasPorRolServicio[`${s.id}|${rol}`] || 0), 0);
+      map[rol] = +(totalH / (diasMes * HORAS_DIA)).toFixed(3);
+    });
+    return map;
+  }, [horasPorRolServicio, diasMes, tribServicios]);
 
-  const esPiloto = params.pilotoPorPersona.includes(tribu);
-  const s = semaforo(pctGlobal, params.utilObjetivo);
+  // Disponible por rol en tribu
+  const disponiblePorRol = useMemo(() => {
+    const map = {};
+    ROLES_DEFAULT.forEach(rol => {
+      const entries = disponibilidad.filter(d => d.tribu === tribu && d.rol === rol && d.mes === mesSel);
+      const total = entries.reduce((a, d) => {
+        const ausEntry = ausencias.find(au => au.colaborador === d.colaborador && au.mes === mesSel);
+        const diasAus = ausEntry ? ausEntry.dias : 0;
+        const neto = d.porcentaje * ((diasMes - diasAus) / diasMes);
+        return a + neto / 100;
+      }, 0);
+      map[rol] = +total.toFixed(3);
+    });
+    return map;
+  }, [disponibilidad, ausencias, tribu, mesSel, diasMes]);
+
+  // Personas en tribu ese mes
+  const personasTribu = disponibilidad.filter(d => d.tribu === tribu && d.mes === mesSel).map(d => d.colaborador);
+  const uniquePersonas = [...new Set(personasTribu)];
+  const noCobrable = +(HORAS_NO_COBRABLE * uniquePersonas.length / (diasMes * HORAS_DIA)).toFixed(3);
+  const totalRequeridoConNC = Object.values(requeridoPorRol).reduce((a, b) => a + b, 0) + noCobrable;
+  const totalDisponible = Object.values(disponiblePorRol).reduce((a, b) => a + b, 0);
+  const diferencia = +(totalDisponible - totalRequeridoConNC).toFixed(3);
+
+  // Por persona (piloto Yarigai)
+  const porPersona = useMemo(() => {
+    if (tribu !== "Yarigai") return [];
+    return uniquePersonas.map(name => {
+      const diasAus = (ausencias.find(a => a.colaborador === name && a.mes === mesSel)?.dias || 0);
+      const dispHoras = (diasMes - diasAus) * HORAS_DIA;
+      const asigH = tribServicios.reduce((acc, s) => {
+        return acc + ROLES_DEFAULT.reduce((a, r) => a + (horasPorRolServicio[`${s.id}|${r}`] || 0), 0);
+      }, 0) / Math.max(uniquePersonas.length, 1);
+      const dif = +(asigH - dispHoras).toFixed(1);
+      return { name, dispHoras, asigH: +asigH.toFixed(1), dif };
+    });
+  }, [uniquePersonas, tribu, diasMes, ausencias, mesSel, tribServicios, horasPorRolServicio]);
 
   return (
     <div className="space-y-5">
-
-      {/* Header tribu */}
-      <div className={`rounded-xl border p-4 ${s.bg}`}>
-        <div className="flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center gap-3 mb-1">
-              <span className="w-3 h-3 rounded-full flex-shrink-0" style={{ background: TRIBU_COLORS[tribu] }}></span>
-              <h2 className="text-base font-bold text-white">{tribu}</h2>
-              <span className={`text-xs font-bold px-2 py-0.5 rounded-full border ${s.bg} ${s.color}`}>{s.label}</span>
-            </div>
-            <p className="text-xs text-slate-500 ml-6">
-              {tribColabs.length} colaboradores activos · {tribServicios.length} servicios · {esPiloto ? "planificación por persona" : "planificación por rol"}
-            </p>
-          </div>
-          <div className="flex items-center gap-6">
-            <div className="text-center">
-              <p className={`text-3xl font-bold font-mono ${s.color}`}>{pctGlobal}%</p>
-              <p className="text-xs text-slate-500">utilización</p>
-            </div>
-            <div className="text-right">
-              <p className="text-xl font-bold font-mono text-white">{totalAsig}h</p>
-              <p className="text-xs text-slate-500">de {totalDisp}h disp.</p>
-            </div>
-          </div>
-        </div>
-      </div>
-
       {/* Selector mes */}
-      <div className="flex items-center gap-3 flex-wrap">
-        <span className="text-xs text-slate-400 uppercase tracking-wider flex-shrink-0">Mes:</span>
+      <div className="flex items-center gap-3">
+        <span className="text-xs text-slate-400 uppercase tracking-wider">Mes:</span>
         <div className="flex gap-1 flex-wrap">
           {calendar.slice(-8).map(c => (
-            <button key={c.mes} onClick={() => setMesSel(c.mes)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mesSel === c.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>
-              {c.label}
-            </button>
+            <button key={c.mes} onClick={() => setMesSel(c.mes)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mesSel === c.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{c.label}</button>
           ))}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-700/50 pb-1 flex-wrap">
-        {[
-          ["utilizacion",  "◎ Utilización por rol"],
-          ["asignaciones", "◧ Asignaciones activas"],
-          ["capacidad",    "⚖️ Capacidad vs Asignado"],
-          ["personas",     esPiloto ? "◉ Por persona (Piloto)" : "◉ Por colaborador"],
-        ].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)}
-            className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700 border-b-transparent" : "text-slate-400 hover:text-white"}`}>
-            {label}
-          </button>
+      <div className="flex gap-1 border-b border-slate-700/50 pb-1">
+        {[["planificacion", "?? Planificación"], ["capacidad", "⚖️ Capacidad vs Demanda"], ...(tribu === "Yarigai" ? [["personas", "?? Por Persona (Piloto)"]] : [])].map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700" : "text-slate-400 hover:text-white"}`}>{label}</button>
         ))}
       </div>
 
-      {/* ── TAB: UTILIZACIÓN POR ROL ─────────────────────────────────────────── */}
-      {tab === "utilizacion" && (
-        <div className="space-y-3">
-          {rolesData.length === 0 && (
-            <p className="text-center text-slate-500 py-12 text-sm">
-              No hay colaboradores activos en {tribu}
-            </p>
-          )}
-          {rolesData.map(r => {
-            const sr = semaforo(r.pct, params.utilObjetivo);
+      {/* PLANIFICACIÓN */}
+      {tab === "planificacion" && (
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">Ingresa las horas por rol para cada servicio en {cal?.label}. Días laborales del mes: <strong className="text-white">{diasMes}</strong></p>
+          {tribServicios.length === 0 && <p className="text-center text-slate-500 py-8">No hay servicios activos para {tribu}</p>}
+          {tribServicios.map(s => {
+            const total = totalHorasServicio(s.id);
+            const limite = s.horasLimite;
+            const sobreLimite = limite > 0 && total > limite;
+            const bajoLimite = limite > 0 && total < limite && total > 0;
             return (
-              <div key={r.rol} className={`rounded-xl border p-4 ${sr.bg}`}>
-                <div className="flex items-center gap-4">
-                  <div className="w-28 flex-shrink-0">
-                    <Pill label={r.rol} color={r.rol} />
-                    <p className="text-xs text-slate-500 mt-1">{r.personas} persona{r.personas !== 1 ? "s" : ""}</p>
+              <div key={s.id} className={`rounded-xl border p-4 space-y-3 ${sobreLimite ? "border-red-500/40 bg-red-500/5" : bajoLimite ? "border-amber-500/30 bg-amber-500/5" : "border-slate-700/50 bg-slate-800/20"}`}>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <span className="text-white font-semibold">{s.nombre}</span>
+                    <Badge color={s.tipo.includes("Crítico") ? "red" : "blue"}>{s.tipo}</Badge>
+                    <span className="text-xs text-slate-500 font-mono">{s.contratoId}</span>
                   </div>
-                  <div className="flex-1">
-                    <BarUtil pct={r.pct} objetivo={params.utilObjetivo} />
-                  </div>
-                  <div className="text-right flex-shrink-0 w-32">
-                    <span className="font-mono text-xs text-slate-400">{r.asignado}h / {r.disponible}h</span>
-                    <p className="text-xs text-slate-600 mt-0.5">{r.disponible - r.asignado}h libre</p>
+                  <div className="flex items-center gap-3 text-xs">
+                    <span className={`font-mono font-bold ${sobreLimite ? "text-red-400" : bajoLimite ? "text-amber-400" : "text-emerald-400"}`}>{total}h / {limite > 0 ? `${limite}h` : "sin límite"}</span>
+                    {sobreLimite && <Badge color="red">Sobre límite</Badge>}
+                    {bajoLimite && <Badge color="amber">Bajo límite</Badge>}
                   </div>
                 </div>
+                <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
+                  {ROLES_DEFAULT.map(rol => (
+                    <div key={rol}>
+                      <label className="text-xs text-slate-500 block mb-1">{rol}</label>
+                      <input
+                        type="number" min="0"
+                        value={horasPorRolServicio[`${s.id}|${rol}`] || ""}
+                        onChange={e => setHoras(s.id, rol, e.target.value)}
+                        placeholder="0"
+                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
+                      />
+                    </div>
+                  ))}
+                </div>
+                {limite > 0 && (
+                  <div className="w-full bg-slate-700/50 rounded-full h-1">
+                    <div className={`h-1 rounded-full transition-all ${sobreLimite ? "bg-red-500" : bajoLimite ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, (total / limite) * 100)}%` }} />
+                  </div>
+                )}
               </div>
             );
           })}
-          {rolesData.length > 0 && (
-            <div className="rounded-xl border border-slate-700/40 bg-slate-800/20 p-4 flex items-center justify-between">
-              <span className="text-sm text-slate-400 font-semibold">Total tribu</span>
-              <div className="flex items-center gap-6">
-                <BarUtil pct={pctGlobal} objetivo={params.utilObjetivo} />
-                <span className="font-mono text-sm text-white">{totalAsig}h / {totalDisp}h</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── TAB: ASIGNACIONES ACTIVAS ─────────────────────────────────────────── */}
-      {tab === "asignaciones" && (
-        <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
-            <KPI title="Asignaciones" value={tribAsigs.length} color="blue" />
-            <KPI title="Horas totales" value={`${tribAsigs.reduce((s, a) => s + (a.horas || 0), 0)}h`} color="green" />
-            <KPI title="Servicios cubiertos" value={[...new Set(tribAsigs.map(a => a.servicioId))].length} color="amber" />
+      {/* CAPACIDAD */}
+      {tab === "capacidad" && (
+        <div className="space-y-5">
+          <div className={`rounded-xl border p-4 ${diferencia >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-semibold text-white">Balance general — {tribu} — {cal?.label}</p>
+                <p className="text-xs text-slate-400 mt-0.5">Disponible: <span className="text-blue-400 font-mono font-bold">{totalDisponible.toFixed(2)}</span> personas · Requerido + No cobrable: <span className="text-slate-300 font-mono font-bold">{totalRequeridoConNC.toFixed(2)}</span></p>
+              </div>
+              <div className="text-right">
+                <p className={`text-3xl font-bold font-mono ${diferencia >= 0 ? "text-emerald-400" : "text-red-400"}`}>{diferencia >= 0 ? "+" : ""}{diferencia}</p>
+                <p className="text-xs text-slate-500">personas equiv.</p>
+              </div>
+            </div>
           </div>
 
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
-                <tr>
-                  {["Rol", "Colaborador", "Servicio", "Horas", "% límite srv."].map(h => (
-                    <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
-                  ))}
-                </tr>
+                <tr>{["Rol", "Requerido", "+ No cobrable", "Disponible", "Diferencia"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
               <tbody>
-                {tribAsigs.length === 0 ? (
-                  <tr><td colSpan={5} className="text-center text-slate-500 py-10 text-sm">
-                    No hay asignaciones para {tribu} en {cal?.label || mesSel}
-                  </td></tr>
-                ) : (
-                  tribAsigs
-                    .sort((a, b) => (a.rol || "").localeCompare(b.rol || ""))
-                    .map(a => {
-                      const srv = servicios.find(s => s.id === a.servicioId);
-                      const esProyecto = srv?.tipo === "Proyecto";
-                      const totalSrv = motor.horasAsignadasServicio(a.servicioId, a.mes);
-                      const pctSrv = srv && !esProyecto && srv.horasLimite > 0
-                        ? Math.round((totalSrv / srv.horasLimite) * 100)
-                        : null;
-                      return (
-                        <tr key={a.id} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                          <td className="px-3 py-2.5"><Pill label={a.rol} color={a.rol} /></td>
-                          <td className="px-3 py-2.5 text-slate-300 text-xs">
-                            {a.colaborador || <span className="text-slate-600">— por rol</span>}
-                          </td>
-                          <td className="px-3 py-2.5 text-white text-xs font-medium">
-                            {srv?.nombre || `#${a.servicioId}`}
-                            {srv?.contratoId && <span className="text-slate-600 ml-1.5 font-mono">{srv.contratoId}</span>}
-                          </td>
-                          <td className="px-3 py-2.5 font-mono font-bold text-white">{a.horas}h</td>
-                          <td className="px-3 py-2.5">
-                            {pctSrv !== null
-                              ? <BarUtil pct={pctSrv} objetivo={100} />
-                              : <span className="text-xs text-slate-600">{esProyecto ? "proyecto" : "sin límite"}</span>
-                            }
-                          </td>
-                        </tr>
-                      );
-                    })
-                )}
+                {ROLES_DEFAULT.map(rol => {
+                  const req = requeridoPorRol[rol];
+                  const disp = disponiblePorRol[rol];
+                  const nc = rol === "GA" ? noCobrable : 0;
+                  const diff = +(disp - req - nc).toFixed(3);
+                  return (
+                    <tr key={rol} className="border-t border-slate-700/30 hover:bg-slate-800/20">
+                      <td className="px-4 py-2.5"><Pill label={rol} color={rol} /></td>
+                      <td className="px-4 py-2.5 font-mono text-slate-300">{req.toFixed(3)}</td>
+                      <td className="px-4 py-2.5 font-mono text-slate-500">{nc > 0 ? nc.toFixed(3) : "—"}</td>
+                      <td className="px-4 py-2.5 font-mono text-blue-400">{disp.toFixed(3)}</td>
+                      <td className="px-4 py-2.5 font-mono font-bold">
+                        <span className={diff >= 0 ? "text-emerald-400" : "text-red-400"}>{diff >= 0 ? "+" : ""}{diff}</span>
+                      </td>
+                    </tr>
+                  );
+                })}
+                <tr className="border-t-2 border-slate-600 bg-slate-800/50">
+                  <td className="px-4 py-2.5 font-bold text-white text-xs uppercase">TOTAL</td>
+                  <td className="px-4 py-2.5 font-mono font-bold text-slate-300">{Object.values(requeridoPorRol).reduce((a, b) => a + b, 0).toFixed(3)}</td>
+                  <td className="px-4 py-2.5 font-mono font-bold text-slate-400">{noCobrable.toFixed(3)}</td>
+                  <td className="px-4 py-2.5 font-mono font-bold text-blue-400">{totalDisponible.toFixed(3)}</td>
+                  <td className="px-4 py-2.5 font-mono font-bold text-lg">
+                    <span className={diferencia >= 0 ? "text-emerald-400" : "text-red-400"}>{diferencia >= 0 ? "+" : ""}{diferencia}</span>
+                  </td>
+                </tr>
               </tbody>
             </table>
           </div>
-
-          {tribAsigs.length > 0 && (
-            <div>
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-3">Horas por servicio</p>
-              <div className="space-y-2">
-                {Object.entries(
-                  tribAsigs.reduce((acc, a) => {
-                    const srv = servicios.find(s => s.id === a.servicioId);
-                    const key = srv?.nombre || `#${a.servicioId}`;
-                    acc[key] = { horas: (acc[key]?.horas || 0) + (a.horas || 0), srv };
-                    return acc;
-                  }, {})
-                )
-                  .sort((a, b) => b[1].horas - a[1].horas)
-                  .map(([nombre, { horas, srv }]) => {
-                    const limite = srv?.horasLimite || 0;
-                    const pct = limite > 0 ? Math.round((horas / limite) * 100) : null;
-                    return (
-                      <div key={nombre} className="flex items-center gap-3 py-2 border-b border-slate-700/20 last:border-0">
-                        <span className="text-xs text-white flex-1 truncate">{nombre}</span>
-                        {pct !== null && <div className="w-32"><BarUtil pct={pct} objetivo={100} /></div>}
-                        <span className="font-mono text-xs text-white flex-shrink-0 w-16 text-right">{horas}h</span>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
         </div>
       )}
 
-      {/* ── TAB: CAPACIDAD VS ASIGNADO ───────────────────────────────────────── */}
-      {tab === "capacidad" && (
-        <div className="space-y-5">
-          <div className="grid grid-cols-3 gap-3">
-            <KPI title="Disponible" value={`${totalDisp}h`} color="blue" sub={`${diasMes} días lab.`} />
-            <KPI title="Asignado" value={`${totalAsig}h`} color={pctGlobal >= params.utilObjetivo ? "green" : pctGlobal >= params.utilObjetivo * 0.8 ? "amber" : "red"} />
-            <KPI title="Libre" value={`${totalDisp - totalAsig}h`} color={totalDisp - totalAsig > 0 ? "amber" : "green"} />
-          </div>
-
-          {chartData.length > 0 ? (
-            <div className="rounded-xl border border-slate-700/50 bg-slate-800/20 p-4">
-              <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-4">
-                Horas disponibles vs asignadas por rol — {cal?.label || mesSel}
-              </p>
-              <div className="h-60">
-                <ResponsiveContainer width="100%" height="100%">
-                  <BarChart data={chartData} barCategoryGap="25%">
-                    <CartesianGrid strokeDasharray="3 3" stroke="#334155" />
-                    <XAxis dataKey="rol" tick={{ fill: "#94a3b8", fontSize: 11 }} />
-                    <YAxis tick={{ fill: "#94a3b8", fontSize: 11 }} label={{ value: "horas", angle: -90, position: "insideLeft", fill: "#475569", fontSize: 10 }} />
-                    <Tooltip contentStyle={{ background: "#1e293b", border: "1px solid #334155", borderRadius: "8px", color: "#f8fafc", fontSize: 12 }} />
-                    <Legend />
-                    <Bar dataKey="disponible" name="Disponible" fill={TRIBU_COLORS[tribu] + "60"} stroke={TRIBU_COLORS[tribu]} strokeWidth={1} radius={[3, 3, 0, 0]} />
-                    <Bar dataKey="asignado" name="Asignado" fill={TRIBU_COLORS[tribu]} radius={[3, 3, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </div>
-            </div>
-          ) : (
-            <div className="rounded-xl border border-slate-700/50 p-12 text-center text-slate-500">
-              <p className="text-sm">No hay colaboradores activos en {tribu}</p>
-              <p className="text-xs mt-1">Agrega personas en el módulo Colaboradores</p>
-            </div>
-          )}
-
-          {chartData.length > 0 && (
-            <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-800/80">
-                  <tr>
-                    {["Rol", "Personas", "Disponible", "Asignado", "Libre", "Utilización"].map(h => (
-                      <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
-                    ))}
-                  </tr>
-                </thead>
-                <tbody>
-                  {chartData.map(r => {
-                    const libre = r.disponible - r.asignado;
-                    return (
-                      <tr key={r.rol} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                        <td className="px-3 py-2.5"><Pill label={r.rol} color={r.rol} /></td>
-                        <td className="px-3 py-2.5 text-slate-400 font-mono text-xs">{r.personas}</td>
-                        <td className="px-3 py-2.5 font-mono text-slate-300">{r.disponible}h</td>
-                        <td className="px-3 py-2.5 font-mono font-bold text-white">{r.asignado}h</td>
-                        <td className="px-3 py-2.5">
-                          <span className={`font-mono text-xs font-bold ${libre > 0 ? "text-amber-400" : "text-emerald-400"}`}>{libre}h</span>
-                        </td>
-                        <td className="px-3 py-2.5 w-40">
-                          <BarUtil pct={r.pct} objetivo={params.utilObjetivo} />
-                        </td>
-                      </tr>
-                    );
-                  })}
-                  <tr className="border-t-2 border-slate-600/50 bg-slate-800/30">
-                    <td className="px-3 py-2.5 font-bold text-white text-xs">TOTAL</td>
-                    <td className="px-3 py-2.5 font-mono text-xs text-slate-400">{tribColabs.length}</td>
-                    <td className="px-3 py-2.5 font-mono font-bold text-slate-300">{totalDisp}h</td>
-                    <td className="px-3 py-2.5 font-mono font-bold text-white">{totalAsig}h</td>
-                    <td className="px-3 py-2.5">
-                      <span className={`font-mono text-xs font-bold ${totalDisp - totalAsig > 0 ? "text-amber-400" : "text-emerald-400"}`}>{totalDisp - totalAsig}h</span>
-                    </td>
-                    <td className="px-3 py-2.5 w-40">
-                      <BarUtil pct={pctGlobal} objetivo={params.utilObjetivo} />
-                    </td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* ── TAB: POR COLABORADOR ─────────────────────────────────────────────── */}
-      {tab === "personas" && (
-        <div className="space-y-3">
-          {porPersona.length === 0 && (
-            <p className="text-center text-slate-500 py-12 text-sm">
-              No hay colaboradores activos en {tribu}
-            </p>
-          )}
-          {porPersona.map(({ colab, disponible, asignado, pct, ausencias: ausD }) => {
-            const sp = semaforo(pct, params.utilObjetivo);
-            const asigPersona = tribAsigs.filter(a => a.colaborador === colab.name);
-            return (
-              <div key={colab.name} className={`rounded-xl border overflow-hidden ${sp.bg}`}>
-                <div className="flex items-center gap-4 px-4 py-3">
-                  <div className="w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold flex-shrink-0"
-                    style={{ background: TRIBU_COLORS[tribu] + "30", color: TRIBU_COLORS[tribu] }}>
-                    {colab.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-semibold text-white truncate">{colab.name}</p>
-                    <p className="text-xs text-slate-500">{colab.rolPrincipal} · {colab.horasDia}h/día</p>
-                  </div>
-                  <div className="w-32 flex-shrink-0">
-                    <BarUtil pct={pct} objetivo={params.utilObjetivo} />
-                  </div>
-                  <div className="text-right flex-shrink-0 w-28">
-                    <span className="font-mono text-xs text-white">{asignado}h / {disponible}h</span>
-                    <p className="text-xs text-slate-500 mt-0.5">
-                      {ausD > 0 ? <span className="text-amber-400">{ausD}d ausente</span> : "sin ausencias"}
-                    </p>
-                  </div>
+      {/* POR PERSONA (Yarigai piloto) */}
+      {tab === "personas" && tribu === "Yarigai" && (
+        <div className="space-y-4">
+          <p className="text-xs text-slate-500">Vista piloto — distribución de horas por persona individual en {cal?.label}.</p>
+          {porPersona.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No hay asignaciones de disponibilidad configuradas para Yarigai en este mes</p>}
+          <div className="grid grid-cols-1 gap-3">
+            {porPersona.map(p => (
+              <div key={p.name} className={`rounded-xl border p-4 flex items-center justify-between ${p.dif > 0 ? "border-red-500/40 bg-red-500/5" : p.dif < -40 ? "border-amber-500/30 bg-amber-500/5" : "border-slate-700/50"}`}>
+                <div className="flex items-center gap-3">
+                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: TRIBU_COLORS["Yarigai"] + "30", color: TRIBU_COLORS["Yarigai"] }}>{p.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
+                  <span className="text-white font-medium">{p.name}</span>
                 </div>
-                {asigPersona.length > 0 && (
-                  <div className="border-t border-slate-700/30 px-4 pb-3 pt-2 bg-slate-900/30">
-                    <p className="text-xs text-slate-600 uppercase tracking-wider mb-2">Asignaciones</p>
-                    <div className="space-y-1">
-                      {asigPersona.map(a => {
-                        const srv = servicios.find(s => s.id === a.servicioId);
-                        return (
-                          <div key={a.id} className="flex items-center gap-2 text-xs">
-                            <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ background: TRIBU_COLORS[tribu] }}></span>
-                            <span className="text-white flex-1 truncate">{srv?.nombre || `#${a.servicioId}`}</span>
-                            <span className="font-mono font-bold text-slate-300">{a.horas}h</span>
-                          </div>
-                        );
-                      })}
-                    </div>
+                <div className="flex items-center gap-6 text-xs">
+                  <div className="text-right"><p className="text-slate-500">Asignado</p><p className="font-mono font-bold text-slate-300">{p.asigH}h</p></div>
+                  <div className="text-right"><p className="text-slate-500">Disponible</p><p className="font-mono font-bold text-blue-400">{p.dispHoras}h</p></div>
+                  <div className="text-right">
+                    <p className="text-slate-500">Diferencia</p>
+                    <p className={`font-mono font-bold ${p.dif > 0 ? "text-red-400" : "text-emerald-400"}`}>{p.dif > 0 ? "+" : ""}{p.dif}h</p>
                   </div>
-                )}
-                {!esPiloto && asigPersona.length === 0 && asignado === 0 && (
-                  <div className="border-t border-slate-700/30 px-4 py-2 bg-slate-900/20">
-                    <p className="text-xs text-slate-600">Sin asignaciones nominales — capacidad incluida en el rol {colab.rolPrincipal}</p>
-                  </div>
-                )}
+                  {p.dif > 0 && <Badge color="red">Sobreocupado</Badge>}
+                  {p.dif < -40 && <Badge color="amber">Subutilizado</Badge>}
+                </div>
               </div>
-            );
-          })}
+            ))}
+          </div>
         </div>
       )}
     </div>
@@ -3016,13 +2870,15 @@ export default function App() {
       fetch("/api/ausencias").then(r => r.json()),
       fetch("/api/calendar").then(r => r.json()),
       fetch("/api/params").then(r => r.json()),
-    ]).then(([cols, servs, asigs, aus, cal, par]) => {
+      fetch("/api/disponibilidad").then(r => r.json()),
+    ]).then(([cols, servs, asigs, aus, cal, par, disp]) => {
       if (Array.isArray(cols) && cols.length > 0) setColaboradores(cols);
       if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
       if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
       if (Array.isArray(aus) && aus.length > 0) setAusencias(aus);
       if (Array.isArray(cal) && cal.length > 0) setCalendar(cal);
       if (par && !par.error) setParams({ ...PARAMS_SEED, ...par });
+      if (Array.isArray(disp)) setDisponibilidad(disp);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -3153,9 +3009,9 @@ export default function App() {
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
           {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
           {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
-          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
         </div>
       </div>
     </div>
