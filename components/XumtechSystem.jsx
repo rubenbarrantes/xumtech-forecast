@@ -920,24 +920,38 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
 // ─── MÓDULO: MAESTRO DE SERVICIOS ─────────────────────────────────────────────
 
+const SERVICIO_FORM_EMPTY = {
+  nombre: "", tipo: "Soporte Evolutivo", tribu: "Dunamis", po: "",
+  contratoId: "", jiraId: "", tecnologia: "", horasLimite: 0,
+  personasDedicadas: 1, estado: "Activo", fechaInicio: "", fechaVencimiento: "", renovable: true,
+};
+
 function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
   const ROLES_SERVICIO_EMPTY = ROLES_DEFAULT.reduce((acc, r) => ({ ...acc, [r]: false }), {});
   const [search, setSearch] = useState("");
   const [tribFilter, setTribFilter] = useState("Todas");
-  const [modal, setModal] = useState(false);
+  const [estadoFilter, setEstadoFilter] = useState("Activo");
+  const [modal, setModal] = useState(false);          // crear
+  const [editModal, setEditModal] = useState(null);   // editar — servicio objeto
+  const [editForm, setEditForm] = useState(SERVICIO_FORM_EMPTY);
   const [detail, setDetail] = useState(null);
-  const [rolesModal, setRolesModal] = useState(null); // servicio id
-  const [form, setForm] = useState({ nombre: "", tipo: "Soporte Evolutivo", tribu: "Dunamis", po: "", contratoId: "", jiraId: "", tecnologia: "", horasLimite: 0, personasDedicadas: 1, estado: "Activo", fechaInicio: "", fechaVencimiento: "", renovable: true });
+  const [rolesModal, setRolesModal] = useState(null);
+  const [form, setForm] = useState(SERVICIO_FORM_EMPTY);
   const [rolesForm, setRolesForm] = useState(ROLES_SERVICIO_EMPTY);
 
-  const pos = colaboradores.filter(c => c.rolPrincipal === "PO" && c.status === "Activo").map(c => c.name);
+  // PO: cualquier colaborador activo (sin restricción de rol)
+  const pos = colaboradores.filter(c => c.status === "Activo").map(c => c.name).sort();
 
   const filtered = servicios.filter(s =>
     (tribFilter === "Todas" || s.tribu === tribFilter) &&
-    (s.nombre.toLowerCase().includes(search.toLowerCase()) || s.contratoId.toLowerCase().includes(search.toLowerCase()))
+    (estadoFilter === "Todos" || s.estado === estadoFilter) &&
+    (s.nombre.toLowerCase().includes(search.toLowerCase()) || (s.contratoId || "").toLowerCase().includes(search.toLowerCase()))
   );
 
+  const tieneHorasLimite = (tipo) => ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Bolsa de Horas"].includes(tipo);
+
+  // ── Crear ─────────────────────────────────────────────────────────────────
   const handleAdd = async () => {
     if (!form.nombre.trim()) return;
     const body = { ...form, horasLimite: Number(form.horasLimite), personasDedicadas: Number(form.personasDedicadas) };
@@ -945,23 +959,97 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
     const saved = await res.json();
     setServicios(p => [...p, { ...saved, roles: {} }]);
     setModal(false);
-    setForm({ nombre: "", tipo: "Soporte Evolutivo", tribu: "Dunamis", po: "", contratoId: "", jiraId: "", tecnologia: "", horasLimite: 0, personasDedicadas: 1, estado: "Activo", fechaInicio: "", fechaVencimiento: "", renovable: true });
+    setForm(SERVICIO_FORM_EMPTY);
   };
 
+  // ── Abrir edición ─────────────────────────────────────────────────────────
+  const openEdit = (s) => {
+    setEditForm({
+      nombre: s.nombre, tipo: s.tipo, tribu: s.tribu, po: s.po,
+      contratoId: s.contratoId, jiraId: s.jiraId, tecnologia: s.tecnologia,
+      horasLimite: s.horasLimite, personasDedicadas: s.personasDedicadas,
+      estado: s.estado, fechaInicio: s.fechaInicio, fechaVencimiento: s.fechaVencimiento,
+      renovable: s.renovable,
+    });
+    setEditModal(s);
+    setDetail(null);
+  };
+
+  // ── Guardar edición ───────────────────────────────────────────────────────
+  const handleEdit = async () => {
+    if (!editForm.nombre.trim()) return;
+    const body = { id: editModal.id, ...editForm, horasLimite: Number(editForm.horasLimite), personasDedicadas: Number(editForm.personasDedicadas) };
+    const res = await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setServicios(p => p.map(s => s.id === editModal.id ? { ...saved, roles: s.roles || {} } : s));
+    setEditModal(null);
+  };
+
+  // ── Eliminar ──────────────────────────────────────────────────────────────
+  const handleDelete = async (s) => {
+    if (!confirm(`¿Eliminar "${s.nombre}"? Se eliminarán también todas sus asignaciones.`)) return;
+    await fetch("/api/servicios", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id }) });
+    setServicios(p => p.filter(x => x.id !== s.id));
+    setDetail(null);
+  };
+
+  // ── Cambiar estado ────────────────────────────────────────────────────────
+  const handleToggleEstado = async (s) => {
+    const body = { ...s, estado: s.estado === "Activo" ? "Inactivo" : "Activo" };
+    await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    setServicios(p => p.map(x => x.id === s.id ? { ...x, estado: body.estado } : x));
+  };
+
+  // ── Roles ─────────────────────────────────────────────────────────────────
   const handleSaveRoles = () => {
-    setServicios(p => p.map(s => s.id === rolesModal ? { ...s, roles: { ...ROLES_DEFAULTForm } } : s));
+    setServicios(p => p.map(s => s.id === rolesModal ? { ...s, roles: { ...rolesForm } } : s));
     setRolesModal(null);
   };
-
   const openRolesModal = (s) => {
     setRolesForm({ ...ROLES_SERVICIO_EMPTY, ...(s.roles || {}) });
     setRolesModal(s.id);
     setDetail(null);
   };
-
   const rolesActivos = (s) => Object.entries(s.roles || {}).filter(([, v]) => v).map(([k]) => k);
 
-  const tieneHorasLimite = (tipo) => ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Bolsa de Horas"].includes(tipo);
+  // ── Form compartido (create / edit) ──────────────────────────────────────
+  const ServicioForm = ({ f, setF, isEdit }) => (
+    <div className="space-y-4">
+      <Input label="Nombre" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
+      <div className="grid grid-cols-2 gap-3">
+        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
+        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="ID Contrato" value={f.contratoId} onChange={e => setF(x => ({ ...x, contratoId: e.target.value }))} placeholder="CN-00xxx" />
+        <Input label="ID Jira" value={f.jiraId} onChange={e => setF(x => ({ ...x, jiraId: e.target.value }))} placeholder="JIRA-xxx" />
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        <Select
+          label="PO / Responsable"
+          value={f.po}
+          onChange={e => setF(x => ({ ...x, po: e.target.value }))}
+          options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]}
+        />
+        <Input label="Tecnología" value={f.tecnologia} onChange={e => setF(x => ({ ...x, tecnologia: e.target.value }))} placeholder="Salesforce, Oracle, Adobe..." />
+      </div>
+      {f.tipo === "Talento Dedicado"
+        ? <Input label="Personas dedicadas" type="number" min="1" value={f.personasDedicadas} onChange={e => setF(x => ({ ...x, personasDedicadas: e.target.value }))} />
+        : <Input label={tieneHorasLimite(f.tipo) ? "Horas límite / mes" : "Horas totales estimadas"} type="number" value={f.horasLimite} onChange={e => setF(x => ({ ...x, horasLimite: e.target.value }))} />
+      }
+      <div className="grid grid-cols-2 gap-3">
+        <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
+        <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
+      </div>
+      {isEdit && (
+        <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={["Activo", "Inactivo"]} />
+      )}
+      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+        <input type="checkbox" checked={f.renovable} onChange={e => setF(x => ({ ...x, renovable: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
+        Contrato renovable
+      </label>
+    </div>
+  );
 
   return (
     <div className="space-y-5">
@@ -975,37 +1063,34 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         <div className="flex gap-1">
           {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
         </div>
+        <div className="flex gap-1">
+          {["Activo", "Inactivo", "Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}
+        </div>
         <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo servicio</Btn>
       </div>
 
       <div className="rounded-xl border border-slate-700/50 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/80">
-            <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Roles requeridos", "Límite horas", "Vigencia", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+            <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Tecnología", "Límite horas", "Vigencia", "Estado", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.map(s => {
-              const roles = rolesActivos(s);
               const hoy = new Date();
               const venc = s.fechaVencimiento ? new Date(s.fechaVencimiento) : null;
               const diasRestantes = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
               const vigenciaColor = diasRestantes === null ? "text-slate-500" : diasRestantes < 0 ? "text-red-400" : diasRestantes <= 60 ? "text-amber-400" : "text-emerald-400";
               const vigenciaLabel = diasRestantes === null ? "Sin fecha" : diasRestantes < 0 ? `Venció hace ${Math.abs(diasRestantes)}d` : diasRestantes <= 30 ? `${diasRestantes}d ⚠` : s.fechaVencimiento;
               return (
-                <tr key={s.id} className="border-t border-slate-700/30 hover:bg-slate-800/20">
+                <tr key={s.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${s.estado === "Inactivo" ? "opacity-50" : ""}`}>
                   <td className="px-3 py-3 text-blue-400 font-mono text-xs">{s.contratoId || "—"}</td>
                   <td className="px-3 py-3 text-white font-medium">{s.nombre}</td>
                   <td className="px-3 py-3"><Badge color={s.tipo.includes("Crítico") ? "red" : s.tipo.includes("Dedicado") ? "purple" : s.tipo.includes("Proyecto") ? "amber" : "blue"}>{s.tipo}</Badge></td>
                   <td className="px-3 py-3"><Pill label={s.tribu} color={s.tribu} /></td>
-                  <td className="px-3 py-3 text-slate-300 text-xs">{s.po}</td>
-                  <td className="px-3 py-3">
-                    {ROLES_DEFAULT.length > 0
-                      ? <div className="flex flex-wrap gap-1">{ROLES_DEFAULT.map(r => <Pill key={r} label={r} color={r} />)}</div>
-                      : <button onClick={() => openRolesModal(s)} className="text-xs text-slate-500 hover:text-blue-400 transition-colors">+ Configurar roles</button>
-                    }
-                  </td>
+                  <td className="px-3 py-3 text-slate-300 text-xs">{s.po || "—"}</td>
+                  <td className="px-3 py-3 text-slate-400 text-xs">{s.tecnologia || "—"}</td>
                   <td className="px-3 py-3 text-slate-300 font-mono text-xs">
-                    {s.tipo === "Talento Dedicado" ? `${s.personasDedicadas}p dedicada${s.personasDedicadas > 1 ? "s" : ""}` : tieneHorasLimite(s.tipo) ? `${s.horasLimite}h/mes` : `${s.horasLimite}h total`}
+                    {s.tipo === "Talento Dedicado" ? `${s.personasDedicadas}p` : `${s.horasLimite}h`}
                   </td>
                   <td className="px-3 py-3">
                     <div className="flex flex-col gap-0.5">
@@ -1013,9 +1098,18 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
                       {s.renovable && <span className="text-xs text-slate-500">renovable</span>}
                     </div>
                   </td>
-                  <td className="px-3 py-3 flex gap-1">
-                    <Btn variant="ghost" size="sm" onClick={() => setDetail(s)}>Ver</Btn>
-                    <Btn variant="ghost" size="sm" onClick={() => openRolesModal(s)}>Roles</Btn>
+                  <td className="px-3 py-3">
+                    <Badge color={s.estado === "Activo" ? "green" : "gray"}>{s.estado}</Badge>
+                  </td>
+                  <td className="px-3 py-3">
+                    <div className="flex items-center gap-1">
+                      <Btn variant="ghost" size="sm" onClick={() => setDetail(s)}>Ver</Btn>
+                      <Btn variant="ghost" size="sm" onClick={() => openEdit(s)}>✏️</Btn>
+                      <Btn variant={s.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(s)}>
+                        {s.estado === "Activo" ? "Desactivar" : "Activar"}
+                      </Btn>
+                      <Btn variant="danger" size="sm" onClick={() => handleDelete(s)}>🗑</Btn>
+                    </div>
                   </td>
                 </tr>
               );
@@ -1025,42 +1119,28 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron servicios</p>}
       </div>
 
-      {/* Add Modal */}
+      {/* Modal: Crear */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo servicio / proyecto">
-        <div className="space-y-4">
-          <Input label="Nombre" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
-            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="ID Contrato" value={form.contratoId} onChange={e => setForm(f => ({ ...f, contratoId: e.target.value }))} placeholder="CN-00xxx" />
-            <Input label="ID Jira" value={form.jiraId} onChange={e => setForm(f => ({ ...f, jiraId: e.target.value }))} placeholder="JIRA-xxx" />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="PO" value={form.po} onChange={e => setForm(f => ({ ...f, po: e.target.value }))} options={[{ value: "", label: "Seleccionar PO..." }, ...pos.map(p => ({ value: p, label: p }))]} />
-            <Input label="Tecnología" value={form.tecnologia} onChange={e => setForm(f => ({ ...f, tecnologia: e.target.value }))} placeholder="Salesforce, Oracle, etc." />
-          </div>
-          {form.tipo === "Talento Dedicado"
-            ? <Input label="Personas dedicadas" type="number" value={form.personasDedicadas} onChange={e => setForm(f => ({ ...f, personasDedicadas: e.target.value }))} min="1" />
-            : <Input label={tieneHorasLimite(form.tipo) ? "Horas límite / mes" : "Horas totales estimadas"} type="number" value={form.horasLimite} onChange={e => setForm(f => ({ ...f, horasLimite: e.target.value }))} />
-          }
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Fecha inicio" type="date" value={form.fechaInicio} onChange={e => setForm(f => ({ ...f, fechaInicio: e.target.value }))} />
-            <Input label="Fecha vencimiento" type="date" value={form.fechaVencimiento} onChange={e => setForm(f => ({ ...f, fechaVencimiento: e.target.value }))} />
-          </div>
-          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-            <input type="checkbox" checked={form.renovable} onChange={e => setForm(f => ({ ...f, renovable: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
-            Contrato renovable
-          </label>
-          <div className="flex justify-end gap-2 pt-2">
-            <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
-            <Btn onClick={handleAdd}>Guardar</Btn>
+        <ServicioForm f={form} setF={setForm} isEdit={false} />
+        <div className="flex justify-end gap-2 pt-4">
+          <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
+          <Btn onClick={handleAdd}>Guardar</Btn>
+        </div>
+      </Modal>
+
+      {/* Modal: Editar */}
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
+        <ServicioForm f={editForm} setF={setEditForm} isEdit={true} />
+        <div className="flex justify-between pt-4">
+          <Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn>
+          <div className="flex gap-2">
+            <Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn>
+            <Btn onClick={handleEdit}>Guardar cambios</Btn>
           </div>
         </div>
       </Modal>
 
-      {/* Roles Modal */}
+      {/* Modal: Roles */}
       <Modal open={!!rolesModal} onClose={() => setRolesModal(null)} title={`Roles requeridos — ${servicios.find(s => s.id === rolesModal)?.nombre}`}>
         <div className="space-y-4">
           <p className="text-xs text-slate-500">Selecciona los roles que participan en este servicio/proyecto.</p>
@@ -1079,11 +1159,24 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         </div>
       </Modal>
 
-      {/* Detail Modal */}
+      {/* Modal: Detalle */}
       <Modal open={!!detail} onClose={() => setDetail(null)} title="Detalle del servicio">
         {detail && (
           <div className="space-y-3">
-            {[["Nombre", detail.nombre], ["Tipo", detail.tipo], ["Tribu", detail.tribu], ["PO", detail.po], ["Contrato", detail.contratoId], ["Jira", detail.jiraId], ["Tecnología", detail.tecnologia], ["Límite horas", detail.tipo === "Talento Dedicado" ? `${detail.personasDedicadas} personas dedicadas` : `${detail.horasLimite}h`], ["Estado", detail.estado]].map(([k, v]) => (
+            {[
+              ["Nombre", detail.nombre],
+              ["Tipo", detail.tipo],
+              ["Tribu", detail.tribu],
+              ["PO / Responsable", detail.po || "—"],
+              ["Contrato", detail.contratoId || "—"],
+              ["Jira", detail.jiraId || "—"],
+              ["Tecnología", detail.tecnologia || "—"],
+              ["Límite horas", detail.tipo === "Talento Dedicado" ? `${detail.personasDedicadas} personas dedicadas` : `${detail.horasLimite}h`],
+              ["Fecha inicio", detail.fechaInicio || "—"],
+              ["Fecha vencimiento", detail.fechaVencimiento || "—"],
+              ["Estado", detail.estado],
+              ["Renovable", detail.renovable ? "Sí" : "No"],
+            ].map(([k, v]) => (
               <div key={k} className="flex justify-between py-2 border-b border-slate-700/30">
                 <span className="text-xs text-slate-500 uppercase tracking-wider">{k}</span>
                 <span className="text-sm text-white font-medium">{v}</span>
@@ -1098,8 +1191,12 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
                 }
               </div>
             </div>
-            <div className="flex justify-end pt-2">
-              <Btn variant="ghost" size="sm" onClick={() => openRolesModal(detail)}>Editar roles</Btn>
+            <div className="flex justify-between pt-3">
+              <Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn>
+              <div className="flex gap-2">
+                <Btn variant="ghost" size="sm" onClick={() => openRolesModal(detail)}>Editar roles</Btn>
+                <Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn>
+              </div>
             </div>
           </div>
         )}
