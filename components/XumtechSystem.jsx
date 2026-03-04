@@ -1602,6 +1602,147 @@ function ModuloClientes({ clientes, setClientes, contactos, setContactos, maestr
   );
 }
 
+
+// ─── MÓDULO: CONTACTOS ───────────────────────────────────────────────────────
+
+function validarEmail(v) { return !v || /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v); }
+function validarTel(v) { return !v || /^[+\d\s\-()]{6,20}$/.test(v); }
+
+const CONTACTO_EMPTY = { nombre: "", cargo: "", email: "", telefono: "", clienteId: "" };
+
+function ModuloContactos({ contactos, setContactos, clientes }) {
+  const [search, setSearch] = useState("");
+  const [clienteFilter, setClienteFilter] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
+  const [form, setForm] = useState(CONTACTO_EMPTY);
+  const [editForm, setEditForm] = useState(CONTACTO_EMPTY);
+  const [formErrors, setFormErrors] = useState({});
+
+  const filtered = contactos.filter(ct =>
+    (clienteFilter === "" || String(ct.clienteId) === String(clienteFilter)) &&
+    (ct.nombre.toLowerCase().includes(search.toLowerCase()) ||
+     (ct.email||"").toLowerCase().includes(search.toLowerCase()) ||
+     (ct.cargo||"").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const clienteNombre = (id) => clientes.find(c => String(c.id) === String(id))?.nombre || "—";
+
+  const validate = (f) => {
+    const errs = {};
+    if (!f.nombre.trim()) errs.nombre = "Requerido";
+    if (!f.clienteId) errs.clienteId = "Requerido";
+    if (!validarEmail(f.email)) errs.email = "Email inválido";
+    if (!validarTel(f.telefono)) errs.telefono = "Formato inválido (ej: +506 8888-8888)";
+    return errs;
+  };
+
+  const handleAdd = async () => {
+    const errs = validate(form);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const res = await fetch("/api/contactos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setContactos(p => [...p, saved]);
+    setModal(false); setForm(CONTACTO_EMPTY); setFormErrors({});
+  };
+
+  const handleEdit = async () => {
+    const errs = validate(editForm);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const res = await fetch("/api/contactos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editModal.id, ...editForm }) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setContactos(p => p.map(c => c.id === editModal.id ? saved : c));
+    setEditModal(null); setFormErrors({});
+  };
+
+  const handleDelete = async (ct) => {
+    if (!confirm(`¿Eliminar contacto "${ct.nombre}"?`)) return;
+    await fetch("/api/contactos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: ct.id }) });
+    setContactos(p => p.filter(x => x.id !== ct.id));
+  };
+
+  const ErrMsg = ({ field }) => formErrors[field] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[field]}</p> : null;
+
+  const ContactoForm = ({ f, setF }) => (
+    <div className="space-y-3">
+      <Select label="Cliente *" value={f.clienteId} onChange={e => { setF(x => ({ ...x, clienteId: e.target.value })); setFormErrors(er => ({ ...er, clienteId: "" })); }}
+        options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
+      <ErrMsg field="clienteId" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Nombre completo *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} />
+          <ErrMsg field="nombre" />
+        </div>
+        <Input label="Cargo / Puesto" value={f.cargo} onChange={e => setF(x => ({ ...x, cargo: e.target.value }))} placeholder="Gerente de TI" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Email" value={f.email} onChange={e => { setF(x => ({ ...x, email: e.target.value })); setFormErrors(er => ({ ...er, email: "" })); }} placeholder="nombre@empresa.com" />
+          <ErrMsg field="email" />
+        </div>
+        <div>
+          <Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()\-]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" />
+          <ErrMsg field="telefono" />
+        </div>
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+        <KPI title="Total contactos" value={contactos.length} color="blue" />
+        <KPI title="Clientes cubiertos" value={new Set(contactos.map(c => c.clienteId)).size} color="green" />
+        <KPI title="Sin contacto" value={clientes.filter(c => !contactos.find(ct => String(ct.clienteId) === String(c.id))).length} color="amber" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por nombre, email, cargo..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-56" />
+        <select value={clienteFilter} onChange={e => setClienteFilter(e.target.value)} className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+          <option value="">Todos los clientes</option>
+          {clientes.filter(c => c.estado === "Activo").map(c => <option key={c.id} value={String(c.id)}>{c.nombre}</option>)}
+        </select>
+        <Btn size="sm" onClick={() => { setForm(CONTACTO_EMPTY); setFormErrors({}); setModal(true); }} className="ml-auto">+ Nuevo contacto</Btn>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table className="w-full text-sm min-w-[560px]">
+          <thead className="bg-slate-800/80"><tr>{["Nombre","Cargo","Cliente","Email","Teléfono",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody>
+            {filtered.map(ct => (
+              <tr key={ct.id} className="border-t border-slate-700/30 hover:bg-slate-800/20">
+                <td className="px-3 py-3 text-white font-medium">{ct.nombre}</td>
+                <td className="px-3 py-3 text-slate-400 text-xs">{ct.cargo || "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><Pill label={clienteNombre(ct.clienteId)} color="blue" /></td>
+                <td className="px-3 py-3 text-xs">{ct.email ? <a href={`mailto:${ct.email}`} className="text-blue-400 hover:underline">{ct.email}</a> : <span className="text-slate-500">—</span>}</td>
+                <td className="px-3 py-3 text-slate-300 text-xs font-mono">{ct.telefono || "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <div className="flex gap-1">
+                    <Btn variant="ghost" size="sm" onClick={() => { setEditForm({ nombre: ct.nombre, cargo: ct.cargo||"", email: ct.email||"", telefono: ct.telefono||"", clienteId: String(ct.clienteId) }); setFormErrors({}); setEditModal(ct); }}>✏️</Btn>
+                    <Btn variant="danger" size="sm" onClick={() => handleDelete(ct)}>🗑</Btn>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron contactos</p>}
+      </div>
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo contacto">
+        <ContactoForm f={form} setF={setForm} />
+        <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
+      </Modal>
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
+        <ContactoForm f={editForm} setF={setEditForm} />
+        <div className="flex justify-between pt-4">
+          <Btn variant="danger" onClick={() => { handleDelete(editModal); setEditModal(null); }}>Eliminar</Btn>
+          <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
 // ─── MÓDULO: CONTRATOS ────────────────────────────────────────────────────────
 
 const CONTRATO_EMPTY = {
@@ -1631,12 +1772,14 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
   );
 
   const handleAdd = async () => {
-    if (!form.numero.trim() || !form.clienteId) { alert("Número y cliente son requeridos"); return; }
-    const res = await fetch("/api/contratos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    if (!form.clienteId) { alert("Selecciona un cliente"); return; }
+    const autoNum = form.numero.trim() || `CN-${String(Date.now()).slice(-5)}`;
+    const body = { ...form, numero: autoNum };
+    const res = await fetch("/api/contratos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const saved = await res.json();
     if (saved.error) { alert(saved.error); return; }
     setContratos(p => [...p, saved]);
-    setModal(false); setForm(CONTRATO_EMPTY);
+    setModal(false); setForm({ ...CONTRATO_EMPTY, numero: `CN-${String(Date.now()).slice(-5)}` });
   };
 
   const handleEdit = async () => {
@@ -1676,7 +1819,7 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
   const ContratoForm = ({ f, setF }) => (
     <div className="space-y-3">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="N° Contrato *" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-2026-001" />
+        <Input label="N° Contrato (auto si vacío)" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-XXXXX (se genera automático)" />
         <Select label="Cliente *" value={f.clienteId} onChange={e => setF(x => ({ ...x, clienteId: e.target.value }))} options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -1710,8 +1853,8 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI title="Contratos activos" value={contratos.filter(c => c.estado === "Activo").length} color="blue" />
         <KPI title="MRR USD" value={`$${totalMRR.toLocaleString()}`} color="green" />
-        <KPI title="Por vencer 60d" value={contratos.filter(c => { if (!c.fechaVencimiento) return false; const d = Math.ceil((new Date(c.fechaVencimiento) - new Date()) / 86400000); return d >= 0 && d <= 60; }).length} color="amber" />
-        <KPI title="Vencidos" value={contratos.filter(c => c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date() && c.estado === "Activo").length} color="red" />
+        <KPI title="Por vencer 60d" value={contratos.filter(c => { try { if (!c.fechaVencimiento) return false; const d = Math.ceil((new Date(c.fechaVencimiento) - new Date()) / 86400000); return d >= 0 && d <= 60; } catch(e){ return false; } }).length} color="amber" />
+        <KPI title="Vencidos" value={contratos.filter(c => { try { return c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date() && c.estado === "Activo"; } catch(e){ return false; } }).length} color="red" />
       </div>
       <div className="flex flex-wrap items-center gap-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar contrato o cliente..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
@@ -2842,8 +2985,9 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 const VIEWS = [
   { id: "parametros",    label: "Parámetros",     icon: "⚙" },
   { id: "colaboradores", label: "Colaboradores",  icon: "◉" },
-  { id: "clientes",      label: "Clientes",       icon: "◎" },
-  { id: "contratos",     label: "Contratos",      icon: "◫" },
+  { id: "clientes",      label: "Clientes",       icon: "◉", grupo: "CRM" },
+  { id: "contactos",     label: "Contactos",      icon: "◎", grupo: "CRM", sub: true },
+  { id: "contratos",     label: "Contratos",      icon: "◫", grupo: "CRM", sub: true },
   { id: "servicios",     label: "Servicios",      icon: "⚙" },
   { id: "dashboard",     label: "Dashboard",      icon: "⬡" },
   { id: "utilizacion",   label: "Utilización",    icon: "◎" },
@@ -3424,10 +3568,10 @@ export default function App() {
             <button
               key={v.id}
               onClick={() => navigate(v.id)}
-              className={`w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium transition-all text-left ${view === v.id ? "bg-blue-600/20 text-blue-400 border border-blue-600/30" : "text-slate-400 hover:text-white hover:bg-slate-800/60"} ${v.tribu ? "ml-2 text-xs" : ""}`}
+              className={`w-full flex items-center gap-2 px-3 rounded-lg font-medium transition-all text-left ${view === v.id ? "bg-blue-600/20 text-blue-400 border border-blue-600/30" : "text-slate-400 hover:text-white hover:bg-slate-800/60"} ${v.tribu ? "ml-2 text-xs py-1.5" : v.sub ? "ml-4 text-xs py-1.5" : "text-sm py-2"}`}
             >
-              <span className="opacity-60 text-xs">{v.icon}</span>
-              {v.label}
+              <span className="opacity-60 text-xs flex-shrink-0">{v.sub ? "└" : v.icon}</span>
+              <span className="truncate">{v.label}</span>
             </button>
           ))}
         </nav>
@@ -3486,6 +3630,7 @@ export default function App() {
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
           {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} maestros={maestros} setMaestros={setMaestros} />}
           {view === "clientes"      && <ModuloClientes clientes={clientes} setClientes={setClientes} contactos={contactos} setContactos={setContactos} maestros={maestros} />}
+          {view === "contactos"     && <ModuloContactos contactos={contactos} setContactos={setContactos} clientes={clientes} />}
           {view === "contratos"     && <ModuloContratos contratos={contratos} setContratos={setContratos} clientes={clientes} colaboradores={colaboradores} maestros={maestros} />}
           {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
           {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
