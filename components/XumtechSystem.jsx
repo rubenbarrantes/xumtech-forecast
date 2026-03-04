@@ -1150,8 +1150,8 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
   const tribServicios = servicios.filter(s => s.tribu === tribu && s.estado === "Activo");
   const tribColabs = colaboradores.filter(c => c.tribu === tribu && c.status === "Activo");
   const tribAsigs = (asignaciones || []).filter(a => a.tribu === tribu && a.mes === mesSel);
-  const rolesData = ROLES_DEFAULT.map(rol => motor.utilizacionRolTribu(tribu, rol, mesSel)).filter(r => r.personas > 0);
-  const porPersona = tribColabs.map(colab => motor.utilizacionPorPersona(colab, mesSel)).sort((a, b) => b.pct - a.pct);
+  const rolesData = ROLES_DEFAULT.map(rol => motor.utilizacionRolTribu(tribu, rol, mesSel)).filter(r => r && r.personas > 0);
+  const porPersona = tribColabs.map(colab => motor.utilizacionPorPersona(colab, mesSel)).filter(p => p && p.colab).sort((a, b) => b.pct - a.pct);
 
   const totalDisp = rolesData.reduce((s, r) => s + r.disponible, 0);
   const totalAsig = rolesData.reduce((s, r) => s + r.asignado, 0);
@@ -1229,7 +1229,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
           <div className="grid grid-cols-3 gap-3">
             <KPI title="Asignaciones" value={tribAsigs.length} color="blue" />
             <KPI title="Horas totales" value={`${tribAsigs.reduce((s, a) => s + (a.horas || 0), 0)}h`} color="green" />
-            <KPI title="Servicios cubiertos" value={new Set(tribAsigs.map(a => a.servicioId)).size} color="purple" />
+            <KPI title="Servicios cubiertos" value={new Set(tribAsigs.map(a => a.servicioId || a.servicio_id)).size} color="purple" />
           </div>
           {tribAsigs.length === 0
             ? <p className="text-slate-500 text-sm text-center py-8">No hay asignaciones registradas para {tribu} en {mesSel}.</p>
