@@ -264,6 +264,188 @@ function BarUtil({ pct, objetivo }) {
 
 const AUSENCIA_FORM_EMPTY = { mes: "2026-01", fecha: "", dias: 1, tipo: "Vacaciones", notas: "" };
 
+// ─── TOP-LEVEL FORM COMPONENTS (prevents re-mount bug on each render) ────────
+
+function ColabFormFields({ f, setF, formErrors, setFormErrors, maestros }) {
+  const ErrMsg = ({ field }) => formErrors[field] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[field]}</p> : null;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Código interno" value={f.codigoInterno} onChange={e => setF(x => ({ ...x, codigoInterno: e.target.value }))} placeholder="COL-XXXXX (auto)" /><p className="text-xs text-slate-500 mt-0.5">Dejar vacío para generar automático</p></div>
+        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Nombre *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} /><ErrMsg field="nombre" /></div>
+        <div><Input label="Apellidos *" value={f.apellidos} onChange={e => { setF(x => ({ ...x, apellidos: e.target.value })); setFormErrors(er => ({ ...er, apellidos: "" })); }} /><ErrMsg field="apellidos" /></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tipo de ID" value={f.tipoId} onChange={e => setF(x => ({ ...x, tipoId: e.target.value }))} options={TIPOS_ID} />
+        <Input label="N° Identificación" value={f.cedula} onChange={e => setF(x => ({ ...x, cedula: e.target.value }))} placeholder="1-XXXX-XXXX" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Correo" value={f.correo} onChange={e => { setF(x => ({ ...x, correo: e.target.value })); setFormErrors(er => ({ ...er, correo: "" })); }} placeholder="nombre@xumtech.com" /><ErrMsg field="correo" /></div>
+        <div><Input label="Teléfono" value={f.telefono} onChange={e => setF(x => ({ ...x, telefono: e.target.value }))} placeholder="+506 8888-8888" /><ErrMsg field="telefono" /></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Fecha de ingreso" type="date" value={f.fechaIngreso} onChange={e => setF(x => ({ ...x, fechaIngreso: e.target.value }))} />
+        <Input label="Fecha de nacimiento" type="date" value={f.fechaNacimiento} onChange={e => setF(x => ({ ...x, fechaNacimiento: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Puesto" value={f.puesto} onChange={e => setF(x => ({ ...x, puesto: e.target.value }))} options={[{ value: "", label: "Seleccionar puesto..." }, ...(maestros?.puestos?.length ? maestros.puestos : PUESTOS_DEFAULT).map(p => ({ value: p, label: p }))]} />
+        <Select label="Rol Operativo" value={f.rolOperativo} onChange={e => setF(x => ({ ...x, rolOperativo: e.target.value }))} options={(maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT)} />
+        <Select label="Estado" value={f.status} onChange={e => setF(x => ({ ...x, status: e.target.value }))} options={["Activo","Inactivo"]} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Horas/día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: e.target.value }))} />
+        <Input label="Días libres/año" type="number" value={f.diasLibresAnio} onChange={e => setF(x => ({ ...x, diasLibresAnio: e.target.value }))} />
+      </div>
+    </div>
+  );
+}
+
+function ServicioFormFields({ f, setF, isEdit, pos, tieneHorasLimite }) {
+  return (
+    <div className="space-y-4">
+      <Input label="Nombre" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
+        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="ID Contrato" value={f.contratoId} onChange={e => setF(x => ({ ...x, contratoId: e.target.value }))} placeholder="CN-00xxx" />
+        <Input label="ID Jira" value={f.jiraId} onChange={e => setF(x => ({ ...x, jiraId: e.target.value }))} placeholder="JIRA-xxx" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="PO / Responsable" value={f.po} onChange={e => setF(x => ({ ...x, po: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]} />
+        <Input label="Tecnología" value={f.tecnologia} onChange={e => setF(x => ({ ...x, tecnologia: e.target.value }))} placeholder="Salesforce, Oracle, Adobe..." />
+      </div>
+      {f.tipo === "Talento Dedicado"
+        ? <Input label="Personas dedicadas" type="number" min="1" value={f.personasDedicadas} onChange={e => setF(x => ({ ...x, personasDedicadas: e.target.value }))} />
+        : <Input label={tieneHorasLimite(f.tipo) ? "Horas límite / mes" : "Horas totales estimadas"} type="number" value={f.horasLimite} onChange={e => setF(x => ({ ...x, horasLimite: e.target.value }))} />
+      }
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
+        <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
+      </div>
+      {isEdit && <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={["Activo","Inactivo"]} />}
+      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+        <input type="checkbox" checked={f.renovable} onChange={e => setF(x => ({ ...x, renovable: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
+        Contrato renovable
+      </label>
+    </div>
+  );
+}
+
+function ClienteFormFields({ f, setF, paises, industrias }) {
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Nombre comercial *" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="ACME Corp" />
+        <Input label="Razón social" value={f.razonSocial} onChange={e => setF(x => ({ ...x, razonSocial: e.target.value }))} placeholder="ACME Sociedad Anónima" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Cédula jurídica" value={f.cedulaJuridica} onChange={e => setF(x => ({ ...x, cedulaJuridica: e.target.value }))} placeholder="3-101-XXXXXX" />
+        <Select label="País" value={f.pais} onChange={e => setF(x => ({ ...x, pais: e.target.value }))} options={paises} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Industria" value={f.industria} onChange={e => setF(x => ({ ...x, industria: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...industrias.map(i => ({ value: i, label: i }))]} />
+        <Select label="Tamaño (empleados)" value={f.tamano} onChange={e => setF(x => ({ ...x, tamano: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...TAMANIOS_EMPRESA.map(t => ({ value: t, label: t }))]} />
+      </div>
+      <Input label="Sitio web" value={f.sitioWeb} onChange={e => setF(x => ({ ...x, sitioWeb: e.target.value }))} placeholder="https://www.empresa.com" />
+      <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
+        <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dirección</p>
+        {f.pais === "Costa Rica" && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Select label="Provincia" value={f.provincia} onChange={e => setF(x => ({ ...x, provincia: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...PROVINCIAS_CR.map(p => ({ value: p, label: p }))]} />
+            <Input label="Cantón" value={f.canton} onChange={e => setF(x => ({ ...x, canton: e.target.value }))} placeholder="San José" />
+            <Input label="Distrito" value={f.distrito} onChange={e => setF(x => ({ ...x, distrito: e.target.value }))} placeholder="Carmen" />
+          </div>
+        )}
+        <Input label="Detalle de dirección" value={f.direccionDetalle} onChange={e => setF(x => ({ ...x, direccionDetalle: e.target.value }))} placeholder="Edificio Torre Mercedes, piso 5" />
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas internas</label>
+        <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} placeholder="Observaciones..." className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
+      </div>
+    </div>
+  );
+}
+
+function ContactoFormFields({ f, setF, formErrors, setFormErrors, clientes }) {
+  const ErrMsg = ({ field }) => formErrors[field] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[field]}</p> : null;
+  return (
+    <div className="space-y-3">
+      <div>
+        <Select label="Cliente *" value={f.clienteId} onChange={e => { setF(x => ({ ...x, clienteId: e.target.value })); setFormErrors(er => ({ ...er, clienteId: "" })); }}
+          options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
+        <ErrMsg field="clienteId" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Nombre completo *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} />
+          <ErrMsg field="nombre" />
+        </div>
+        <Input label="Cargo / Puesto" value={f.cargo} onChange={e => setF(x => ({ ...x, cargo: e.target.value }))} placeholder="Gerente de TI" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Email" value={f.email} onChange={e => { setF(x => ({ ...x, email: e.target.value })); setFormErrors(er => ({ ...er, email: "" })); }} placeholder="nombre@empresa.com" />
+          <ErrMsg field="email" />
+        </div>
+        <div>
+          <Input label="Teléfono" value={f.telefono} onChange={e => setF(x => ({ ...x, telefono: e.target.value }))} placeholder="+506 8888-8888" />
+          <ErrMsg field="telefono" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ContratoFormFields({ f, setF, clientes, gerentes, updateFechas, FORMAS_PAGO, MONEDAS, TIPOS_CONTRATO, ESTADOS }) {
+  return (
+    <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="N° Contrato *" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-XXXXX" />
+        <Select label="Cliente *" value={f.clienteId} onChange={e => setF(x => ({ ...x, clienteId: e.target.value }))} options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
+      </div>
+      <Input label="Nombre del contrato" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Ej: Contrato Soporte Oracle 2026" />
+      <div><label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Descripción</label><textarea value={f.descripcion} onChange={e => setF(x => ({ ...x, descripcion: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" /></div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tipo contrato" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_CONTRATO} />
+        <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={ESTADOS} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input label="Fecha de firma" type="date" value={f.fechaFirma} onChange={e => setF(x => ({ ...x, fechaFirma: e.target.value }))} />
+        <Input label="Fecha de inicio" type="date" value={f.fechaInicio} onChange={e => updateFechas(f, setF, "fechaInicio", e.target.value)} />
+        <Input label="Cantidad de meses" type="number" value={f.cantidadMeses} onChange={e => updateFechas(f, setF, "cantidadMeses", e.target.value)} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Fecha vencimiento (auto)" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} /><p className="text-xs text-slate-500 mt-0.5">Calculada automáticamente</p></div>
+        <div><Input label="Fecha renovación (auto)" value={f.fechaRenovacion} onChange={e => setF(x => ({ ...x, fechaRenovacion: e.target.value }))} /><p className="text-xs text-slate-500 mt-0.5">45 días antes del vencimiento</p></div>
+      </div>
+      <Input label="URL del contrato" value={f.urlContrato} onChange={e => setF(x => ({ ...x, urlContrato: e.target.value }))} placeholder="https://drive.google.com/..." />
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tribu (opcional)" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={[{ value: "", label: "Sin tribu fija" }, ...TRIBUS_DEFAULT.map(t => ({ value: t, label: t }))]} />
+        <Select label="Gerente de cuenta" value={f.gerenteCuenta} onChange={e => setF(x => ({ ...x, gerenteCuenta: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...gerentes.map(g => ({ value: g, label: g }))]} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Forma de pago" value={f.formaPago} onChange={e => setF(x => ({ ...x, formaPago: e.target.value }))} options={FORMAS_PAGO} />
+        <Select label="Moneda" value={f.moneda} onChange={e => setF(x => ({ ...x, moneda: e.target.value }))} options={MONEDAS} />
+        <Input label="Monto contrato" type="number" value={f.montoContrato} onChange={e => setF(x => ({ ...x, montoContrato: Number(e.target.value) }))} />
+      </div>
+      <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
+        <p className="text-xs font-semibold text-slate-400 uppercase">Facturación</p>
+        <Input label="Nombre a facturar" value={f.nombreFacturar} onChange={e => setF(x => ({ ...x, nombreFacturar: e.target.value }))} placeholder="Razón social del cliente" />
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"><input type="checkbox" checked={f.facturaExtranjera} onChange={e => setF(x => ({ ...x, facturaExtranjera: e.target.checked }))} className="w-4 h-4 accent-blue-500" />Factura extranjera</label>
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"><input type="checkbox" checked={f.aplicaIVA} onChange={e => setF(x => ({ ...x, aplicaIVA: e.target.checked }))} className="w-4 h-4 accent-blue-500" />Aplica IVA</label>
+          {f.aplicaIVA && <Input label="% IVA" type="number" value={f.porcentajeIVA} onChange={e => setF(x => ({ ...x, porcentajeIVA: Number(e.target.value) }))} />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAusencias, calendar, params, maestros }) {
   const MOTIVOS_AUSENCIA = ["Vacaciones","Incapacidad","Permiso con goce","Permiso sin goce","Feriado","Capacitación","Otro"];
   const TIPOS_ID = ["Cédula de identidad","DIMEX","Pasaporte","Otro"];
@@ -362,38 +544,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
 
   const ErrMsg = ({ f }) => formErrors[f] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[f]}</p> : null;
 
-  const ColabForm = ({ f, setF }) => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><Input label="Código interno" value={f.codigoInterno} onChange={e => setF(x => ({ ...x, codigoInterno: e.target.value }))} placeholder="COL-XXXXX (auto)" /><p className="text-xs text-slate-500 mt-0.5">Dejar vacío para generar automático</p></div>
-        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><Input label="Nombre *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} /><ErrMsg f="nombre" /></div>
-        <div><Input label="Apellidos *" value={f.apellidos} onChange={e => { setF(x => ({ ...x, apellidos: e.target.value })); setFormErrors(er => ({ ...er, apellidos: "" })); }} /><ErrMsg f="apellidos" /></div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tipo de ID" value={f.tipoId} onChange={e => setF(x => ({ ...x, tipoId: e.target.value }))} options={TIPOS_ID} />
-        <Input label="N° Identificación" value={f.cedula} onChange={e => setF(x => ({ ...x, cedula: e.target.value }))} placeholder="1-XXXX-XXXX" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><Input label="Correo" value={f.correo} onChange={e => { setF(x => ({ ...x, correo: e.target.value })); setFormErrors(er => ({ ...er, correo: "" })); }} placeholder="nombre@xumtech.com" /><ErrMsg f="correo" /></div>
-        <div><Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()\-]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" /><ErrMsg f="telefono" /></div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Fecha de ingreso" type="date" value={f.fechaIngreso} onChange={e => setF(x => ({ ...x, fechaIngreso: e.target.value }))} />
-        <Input label="Fecha de nacimiento" type="date" value={f.fechaNacimiento} onChange={e => setF(x => ({ ...x, fechaNacimiento: e.target.value }))} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Select label="Puesto" value={f.puesto} onChange={e => setF(x => ({ ...x, puesto: e.target.value }))} options={[{ value: "", label: "Seleccionar puesto..." }, ...(maestros?.puestos?.length ? maestros.puestos : PUESTOS_DEFAULT).map(p => ({ value: p, label: p }))]} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Select label="Rol Operativo" value={f.rolOperativo} onChange={e => setF(x => ({ ...x, rolOperativo: e.target.value }))} options={(maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT)} />
-        <Input label="Horas/día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: e.target.value }))} />
-        <Input label="Días libres/año" type="number" value={f.diasLibresAnio} onChange={e => setF(x => ({ ...x, diasLibresAnio: e.target.value }))} />
-      </div>
-    </div>
-  );
+
 
   const ausenciasDeColab = (name) => ausencias.filter(a => a.colaborador === name);
 
@@ -442,13 +593,13 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
 
       {/* Modal nuevo */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo colaborador">
-        <ColabForm f={form} setF={setForm} />
+        <ColabFormFields f={form} setF={setForm} formErrors={formErrors} setFormErrors={setFormErrors} maestros={maestros} />
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
 
       {/* Modal editar */}
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.name}`}>
-        <ColabForm f={editForm} setF={setEditForm} />
+        <ColabFormFields f={editForm} setF={setEditForm} formErrors={formErrors} setFormErrors={setFormErrors} maestros={maestros} />
         <div className="flex justify-between pt-4">
           <Btn variant={editModal?.status === "Activo" ? "danger" : "ghost"} onClick={() => { handleToggleStatus(editModal.id); setEditModal(null); }}>{editModal?.status === "Activo" ? "Desactivar" : "Activar"}</Btn>
           <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar cambios</Btn></div>
@@ -890,7 +1041,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
           })}
 
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-slate-800/80">
                 <tr>{["Colaborador", "Rol", "Tribu", "Mes", "% Asignado", "Total persona-mes", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
@@ -979,7 +1130,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
         <div className="space-y-4">
           <p className="text-xs text-slate-500">Calculado automáticamente: % Bruto × (Días reales persona / Días calendario mes). Solo lectura.</p>
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-slate-800/80">
                 <tr>{["Colaborador", "Rol", "Tribu", "Mes", "% Bruto", "Días cal.", "Días reales", "% Neto"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
@@ -1135,36 +1286,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   };
   const rolesActivos = (s) => Object.entries(s.roles || {}).filter(([, v]) => v).map(([k]) => k);
 
-  const ServicioForm = ({ f, setF, isEdit }) => (
-    <div className="space-y-4">
-      <Input label="Nombre" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
-        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="ID Contrato" value={f.contratoId} onChange={e => setF(x => ({ ...x, contratoId: e.target.value }))} placeholder="CN-00xxx" />
-        <Input label="ID Jira" value={f.jiraId} onChange={e => setF(x => ({ ...x, jiraId: e.target.value }))} placeholder="JIRA-xxx" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="PO / Responsable" value={f.po} onChange={e => setF(x => ({ ...x, po: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]} />
-        <Input label="Tecnología" value={f.tecnologia} onChange={e => setF(x => ({ ...x, tecnologia: e.target.value }))} placeholder="Salesforce, Oracle, Adobe..." />
-      </div>
-      {f.tipo === "Talento Dedicado"
-        ? <Input label="Personas dedicadas" type="number" min="1" value={f.personasDedicadas} onChange={e => setF(x => ({ ...x, personasDedicadas: e.target.value }))} />
-        : <Input label={tieneHorasLimite(f.tipo) ? "Horas límite / mes" : "Horas totales estimadas"} type="number" value={f.horasLimite} onChange={e => setF(x => ({ ...x, horasLimite: e.target.value }))} />
-      }
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
-        <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
-      </div>
-      {isEdit && <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={["Activo", "Inactivo"]} />}
-      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-        <input type="checkbox" checked={f.renovable} onChange={e => setF(x => ({ ...x, renovable: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
-        Contrato renovable
-      </label>
-    </div>
-  );
+
 
   return (
     <div className="space-y-5">
@@ -1220,11 +1342,11 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron servicios</p>}
       </div>
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo servicio / proyecto">
-        <ServicioForm f={form} setF={setForm} isEdit={false} />
+        <ServicioFormFields f={form} setF={setForm} isEdit={false} pos={pos} tieneHorasLimite={tieneHorasLimite} />
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
-        <ServicioForm f={editForm} setF={setEditForm} isEdit={true} />
+        <ServicioFormFields f={editForm} setF={setEditForm} isEdit={true} pos={pos} tieneHorasLimite={tieneHorasLimite} />
         <div className="flex justify-between pt-4">
           <Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn>
           <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar cambios</Btn></div>
@@ -1886,38 +2008,7 @@ function ModuloClientes({ clientes, setClientes, contactos, setContactos, maestr
     setContactos(p => p.filter(x => x.id !== id));
   };
 
-  const ClienteForm = ({ f, setF }) => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Nombre comercial *" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="ACME Corp" />
-        <Input label="Razón social" value={f.razonSocial} onChange={e => setF(x => ({ ...x, razonSocial: e.target.value }))} placeholder="ACME Sociedad Anónima" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Cédula jurídica" value={f.cedulaJuridica} onChange={e => setF(x => ({ ...x, cedulaJuridica: e.target.value }))} placeholder="3-101-XXXXXX" />
-        <Select label="País" value={f.pais} onChange={e => setF(x => ({ ...x, pais: e.target.value }))} options={paises} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Industria" value={f.industria} onChange={e => setF(x => ({ ...x, industria: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...industrias.map(i => ({ value: i, label: i }))]} />
-        <Select label="Tamaño (empleados)" value={f.tamano} onChange={e => setF(x => ({ ...x, tamano: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...TAMANIOS_EMPRESA.map(t => ({ value: t, label: t }))]} />
-      </div>
-      <Input label="Sitio web" value={f.sitioWeb} onChange={e => setF(x => ({ ...x, sitioWeb: e.target.value }))} placeholder="https://www.empresa.com" />
-      <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
-          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dirección</p>
-          {f.pais === "Costa Rica" && (
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              <Select label="Provincia" value={f.provincia} onChange={e => setF(x => ({ ...x, provincia: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...PROVINCIAS_CR.map(p => ({ value: p, label: p }))]} />
-              <Input label="Cantón" value={f.canton} onChange={e => setF(x => ({ ...x, canton: e.target.value }))} placeholder="San José" />
-              <Input label="Distrito" value={f.distrito} onChange={e => setF(x => ({ ...x, distrito: e.target.value }))} placeholder="Carmen" />
-            </div>
-          )}
-          <Input label="Detalle de dirección" value={f.direccionDetalle} onChange={e => setF(x => ({ ...x, direccionDetalle: e.target.value }))} placeholder="Edificio Torre Mercedes, piso 5" />
-        </div>
-      <div>
-        <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas internas</label>
-        <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} placeholder="Observaciones..." className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
-      </div>
-    </div>
-  );
+
 
   return (
     <div className="space-y-5">
@@ -1952,8 +2043,8 @@ function ModuloClientes({ clientes, setClientes, contactos, setContactos, maestr
         </table>
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron clientes</p>}
       </div>
-      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo cliente"><ClienteForm f={form} setF={setForm} /><div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div></Modal>
-      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}><ClienteForm f={editForm} setF={setEditForm} /><div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div></Modal>
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo cliente"><ClienteFormFields f={form} setF={setForm} paises={paises} industrias={industrias} /><div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div></Modal>
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}><ClienteFormFields f={editForm} setF={setEditForm} paises={paises} industrias={industrias} /><div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div></Modal>
       <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.nombre}>
         {detail && (<div className="space-y-2">{[["Razón social",detail.razonSocial||"—"],["Cédula jurídica",detail.cedulaJuridica||"—"],["País",detail.pais||"—"],["Industria",detail.industria||"—"],["Tamaño",detail.tamano||"—"],["Sitio web",detail.sitioWeb||"—"],["Provincia",detail.provincia||"—"],["Cantón",detail.canton||"—"],["Distrito",detail.distrito||"—"],["Dirección",detail.direccionDetalle||"—"]].map(([k,v]) => (<div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30"><span className="text-xs text-slate-500">{k}</span><span className="text-sm text-white text-right max-w-[60%]">{v}</span></div>))}{detail.notas && <div className="bg-slate-800/40 rounded-lg p-3 mt-2"><p className="text-xs text-slate-400">{detail.notas}</p></div>}<div className="flex justify-between pt-3"><Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" size="sm" onClick={() => { setContactoModal(detail.id); setDetail(null); }}>Contactos</Btn><Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn></div></div></div>)}
       </Modal>
@@ -2039,30 +2130,7 @@ function ModuloContactos({ contactos, setContactos, clientes }) {
 
   const ErrMsg = ({ field }) => formErrors[field] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[field]}</p> : null;
 
-  const ContactoForm = ({ f, setF }) => (
-    <div className="space-y-3">
-      <Select label="Cliente *" value={f.clienteId} onChange={e => { setF(x => ({ ...x, clienteId: e.target.value })); setFormErrors(er => ({ ...er, clienteId: "" })); }}
-        options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
-      <ErrMsg field="clienteId" />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <Input label="Nombre completo *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} />
-          <ErrMsg field="nombre" />
-        </div>
-        <Input label="Cargo / Puesto" value={f.cargo} onChange={e => setF(x => ({ ...x, cargo: e.target.value }))} placeholder="Gerente de TI" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <Input label="Email" value={f.email} onChange={e => { setF(x => ({ ...x, email: e.target.value })); setFormErrors(er => ({ ...er, email: "" })); }} placeholder="nombre@empresa.com" />
-          <ErrMsg field="email" />
-        </div>
-        <div>
-          <Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()\-]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" />
-          <ErrMsg field="telefono" />
-        </div>
-      </div>
-    </div>
-  );
+
 
   return (
     <div className="space-y-5">
@@ -2103,7 +2171,7 @@ function ModuloContactos({ contactos, setContactos, clientes }) {
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron contactos</p>}
       </div>
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo contacto">
-        <ContactoForm f={form} setF={setForm} />
+        <ContactoFormFields f={form} setF={setForm} formErrors={formErrors} setFormErrors={setFormErrors} clientes={clientes} />
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
@@ -2213,48 +2281,7 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
     } catch { return <span className="text-slate-500 text-xs">{fecha}</span>; }
   };
 
-  const ContratoForm = ({ f, setF }) => (
-    <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="N° Contrato *" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-XXXXX" />
-        <Select label="Cliente *" value={f.clienteId} onChange={e => setF(x => ({ ...x, clienteId: e.target.value }))} options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
-      </div>
-      <Input label="Nombre del contrato" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Ej: Contrato Soporte Oracle 2026" />
-      <div><label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Descripción</label><textarea value={f.descripcion} onChange={e => setF(x => ({ ...x, descripcion: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" /></div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tipo contrato" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_CONTRATO} />
-        <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={ESTADOS} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Input label="Fecha de firma" type="date" value={f.fechaFirma} onChange={e => setF(x => ({ ...x, fechaFirma: e.target.value }))} />
-        <Input label="Fecha de inicio" type="date" value={f.fechaInicio} onChange={e => updateFechas(f, setF, "fechaInicio", e.target.value)} />
-        <Input label="Cantidad de meses" type="number" value={f.cantidadMeses} onChange={e => updateFechas(f, setF, "cantidadMeses", e.target.value)} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div><Input label="Fecha vencimiento (auto)" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} /><p className="text-xs text-slate-500 mt-0.5">Calculada automáticamente</p></div>
-        <div><Input label="Fecha renovación (auto)" value={f.fechaRenovacion} onChange={e => setF(x => ({ ...x, fechaRenovacion: e.target.value }))} /><p className="text-xs text-slate-500 mt-0.5">45 días antes del vencimiento</p></div>
-      </div>
-      <Input label="URL del contrato" value={f.urlContrato} onChange={e => setF(x => ({ ...x, urlContrato: e.target.value }))} placeholder="https://drive.google.com/..." />
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tribu (opcional)" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={[{ value: "", label: "Sin tribu fija" }, ...TRIBUS_DEFAULT.map(t => ({ value: t, label: t }))]} />
-        <Select label="Gerente de cuenta" value={f.gerenteCuenta} onChange={e => setF(x => ({ ...x, gerenteCuenta: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...gerentes.map(g => ({ value: g, label: g }))]} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Select label="Forma de pago" value={f.formaPago} onChange={e => setF(x => ({ ...x, formaPago: e.target.value }))} options={FORMAS_PAGO} />
-        <Select label="Moneda" value={f.moneda} onChange={e => setF(x => ({ ...x, moneda: e.target.value }))} options={MONEDAS} />
-        <Input label="Monto contrato" type="number" value={f.montoContrato} onChange={e => setF(x => ({ ...x, montoContrato: Number(e.target.value) }))} />
-      </div>
-      <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
-        <p className="text-xs font-semibold text-slate-400 uppercase">Facturación</p>
-        <Input label="Nombre a facturar" value={f.nombreFacturar} onChange={e => setF(x => ({ ...x, nombreFacturar: e.target.value }))} placeholder="Razón social del cliente" />
-        <div className="flex flex-wrap gap-4">
-          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"><input type="checkbox" checked={f.facturaExtranjera} onChange={e => setF(x => ({ ...x, facturaExtranjera: e.target.checked }))} className="w-4 h-4 accent-blue-500" />Factura extranjera</label>
-          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"><input type="checkbox" checked={f.aplicaIVA} onChange={e => setF(x => ({ ...x, aplicaIVA: e.target.checked }))} className="w-4 h-4 accent-blue-500" />Aplica IVA</label>
-          {f.aplicaIVA && <Input label="% IVA" type="number" value={f.porcentajeIVA} onChange={e => setF(x => ({ ...x, porcentajeIVA: Number(e.target.value) }))} />}
-        </div>
-      </div>
-    </div>
-  );
+
 
   const totalMRR = contratos.filter(c => c.estado === "Activo" && c.moneda === "USD").reduce((s, c) => s + (c.montoContrato || 0), 0);
 
@@ -2297,12 +2324,12 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
       </div>
 
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo contrato">
-        <ContratoForm f={form} setF={setForm} />
+        <ContratoFormFields f={form} setF={setForm} clientes={clientes} gerentes={gerentes} updateFechas={updateFechas} FORMAS_PAGO={FORMAS_PAGO} MONEDAS={MONEDAS} TIPOS_CONTRATO={TIPOS_CONTRATO} ESTADOS={ESTADOS} />
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
 
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.numero}`}>
-        <ContratoForm f={editForm} setF={setEditForm} />
+        <ContratoFormFields f={editForm} setF={setEditForm} clientes={clientes} gerentes={gerentes} updateFechas={updateFechas} FORMAS_PAGO={FORMAS_PAGO} MONEDAS={MONEDAS} TIPOS_CONTRATO={TIPOS_CONTRATO} ESTADOS={ESTADOS} />
         <div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div>
       </Modal>
 
@@ -2737,7 +2764,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, prov
 
       {/* Tabla */}
       <div className="rounded-xl border border-slate-700/50 overflow-x-auto">
-        <table className="w-full text-sm">
+        <table className="w-full text-sm min-w-[640px]">
           <thead className="bg-slate-800/80">
             <tr>
               {["Tribu", "Rol", "Colaborador", "Servicio", "Mes", "Horas", "% Límite srv.", ""].map(h => (
@@ -3123,7 +3150,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
       <div>
         <SectionHeader>Brecha mensual — Disponible minus Demanda (personas equiv.)</SectionHeader>
         <div className="rounded-xl border border-slate-700/50 overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm min-w-[640px]">
             <thead className="bg-slate-800/80">
               <tr>
                 <th className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider sticky left-0 bg-slate-800/80">Tribu</th>
@@ -3165,7 +3192,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
         <div>
           <SectionHeader>Contratos que vencen en el horizonte seleccionado</SectionHeader>
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-slate-800/80">
                 <tr>{["Contrato", "Servicio", "Tribu", "Vencimiento", "¿Renovable?", "Impacto (personas)"].map(h => (
                   <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>
@@ -3496,7 +3523,7 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 
           {/* Tabla de impacto mes a mes */}
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-slate-800/80">
                 <tr>
                   {["Mes", "Disponible", "Demanda actual", simActivo ? "+ Proyecto" : "", simActivo ? "Brecha nueva" : "Brecha actual", "Estado"].filter(Boolean).map(h => (
@@ -3839,7 +3866,7 @@ function ModuloAlertas({ alertas, onNavigate }) {
             <span className="text-blue-400">◫ Contratos vencen en menos de 60 días</span>
           </SectionHeader>
           <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
+            <table className="w-full text-sm min-w-[640px]">
               <thead className="bg-slate-800/80">
                 <tr>
                   {["Contrato", "Servicio", "Tribu", "Días restantes", "¿Renovable?"].map(h => (
