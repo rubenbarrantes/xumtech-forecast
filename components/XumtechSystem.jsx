@@ -11,18 +11,6 @@ const HORAS_DIA = 8;
 const HORAS_NO_COBRABLE = 11;
 
 const CALENDAR_SEED = [
-  { mes: "2025-01", label: "Ene 2025", diasLaborales: 22, feriados: 1, dif20: 3 },
-  { mes: "2025-02", label: "Feb 2025", diasLaborales: 20, feriados: 0, dif20: 0 },
-  { mes: "2025-03", label: "Mar 2025", diasLaborales: 21, feriados: 0, dif20: 1 },
-  { mes: "2025-04", label: "Abr 2025", diasLaborales: 19, feriados: 3, dif20: 2 },
-  { mes: "2025-05", label: "May 2025", diasLaborales: 21, feriados: 1, dif20: 2 },
-  { mes: "2025-06", label: "Jun 2025", diasLaborales: 21, feriados: 0, dif20: 1 },
-  { mes: "2025-07", label: "Jul 2025", diasLaborales: 22, feriados: 1, dif20: 3 },
-  { mes: "2025-08", label: "Ago 2025", diasLaborales: 19, feriados: 2, dif20: 1 },
-  { mes: "2025-09", label: "Sep 2025", diasLaborales: 20, feriados: 2, dif20: 2 },
-  { mes: "2025-10", label: "Oct 2025", diasLaborales: 23, feriados: 0, dif20: 3 },
-  { mes: "2025-11", label: "Nov 2025", diasLaborales: 18, feriados: 2, dif20: 0 },
-  { mes: "2025-12", label: "Dic 2025", diasLaborales: 21, feriados: 2, dif20: 3 },
   { mes: "2026-01", label: "Ene 2026", diasLaborales: 21, feriados: 1, dif20: 2 },
   { mes: "2026-02", label: "Feb 2026", diasLaborales: 20, feriados: 0, dif20: 0 },
   { mes: "2026-03", label: "Mar 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
@@ -526,9 +514,12 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
   // Calendario: agregar mes nuevo
   const handleAddMes = async () => {
-    if (!calForm.mes || !calForm.label) return;
+    if (!calForm.mes) return;
     if (calendar.find(c => c.mes === calForm.mes)) return alert("Ese mes ya existe");
-    const body = { ...calForm, diasLaborales: Number(calForm.diasLaborales), feriados: Number(calForm.feriados), dif20: Number(calForm.diasLaborales) - 20 };
+    const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+    const [yr, mo] = calForm.mes.split("-");
+    const autoLabel = `${MESES_ES[parseInt(mo,10)-1]} ${yr}`;
+    const body = { ...calForm, label: autoLabel, diasLaborales: Number(calForm.diasLaborales), feriados: Number(calForm.feriados), dif20: Number(calForm.diasLaborales) - 20 };
     const res = await fetch("/api/calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) {
       setCalendar(p => [...p, body].sort((a, b) => a.mes.localeCompare(b.mes)));
@@ -753,7 +744,6 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Mes (YYYY-MM)" value={calForm.mes} onChange={e => setCalForm(f => ({ ...f, mes: e.target.value }))} placeholder="2026-07" />
-                <Input label="Etiqueta" value={calForm.label} onChange={e => setCalForm(f => ({ ...f, label: e.target.value }))} placeholder="Jul 2026" />
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <Input label="Días laborales" type="number" min="1" max="23" value={calForm.diasLaborales} onChange={e => setCalForm(f => ({ ...f, diasLaborales: e.target.value }))} />
@@ -1149,7 +1139,9 @@ function BarUtilSimple({ pct, color }) {
 function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad, ausencias, colaboradores, params }) {
   const hoy = new Date();
   const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
-  const [mesSel, setMesSel] = useState(mesActual);
+  const calDesc = [...calendar].sort((a, b) => b.mes.localeCompare(a.mes));
+  const mesInicial = calDesc.find(c => c.mes <= mesActual)?.mes || calDesc[0]?.mes || mesActual;
+  const [mesSel, setMesSel] = useState(mesInicial);
   const [tab, setTab] = useState("utilizacion");
 
   const motor = useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, servicios, params });
@@ -1178,7 +1170,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
           <p className={`text-2xl font-bold ${semaforo}`}>{pctGlobal}% <span className="text-sm font-normal text-slate-400">utilización {mesSel}</span></p>
         </div>
         <div className="flex gap-1.5 overflow-x-auto pb-1">
-          {calendar.map(cal => (
+          {[...calendar].sort((a, b) => b.mes.localeCompare(a.mes)).map(cal => (
             <button key={cal.mes} onClick={() => setMesSel(cal.mes)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${mesSel === cal.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"}`}>{cal.label}</button>
           ))}
         </div>
@@ -2886,7 +2878,7 @@ export default function App() {
       if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
       if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
       if (Array.isArray(aus) && aus.length > 0) setAusencias(aus);
-      if (Array.isArray(cal) && cal.length > 0) setCalendar(cal);
+      if (Array.isArray(cal) && cal.length > 0) setCalendar(cal.filter(m => m.mes >= "2026-01"));
       if (par && !par.error) setParams({ ...PARAMS_SEED, ...par });
       if (Array.isArray(disp)) setDisponibilidad(disp);
     }).catch(console.error).finally(() => setLoading(false));
