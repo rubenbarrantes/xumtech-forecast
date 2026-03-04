@@ -159,12 +159,6 @@ function AddItemInline({ placeholder = "Agregar...", onAdd }) {
   );
 }
 
-) {
-  const v = { primary: "bg-blue-600 hover:bg-blue-700 text-white", ghost: "bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700", danger: "bg-red-600/20 hover:bg-red-600/40 text-red-400 border border-red-700/40" };
-  const s = { sm: "px-3 py-1.5 text-xs", md: "px-4 py-2 text-sm" };
-  return <button className={`rounded-lg font-medium transition-colors ${v[variant]} ${s[size]}`} {...props}>{children}</button>;
-}
-
 // ─── MOTOR DE UTILIZACIÓN ─────────────────────────────────────────────────────
 
 function useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, servicios, params }) {
