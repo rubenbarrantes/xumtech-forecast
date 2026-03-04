@@ -31,24 +31,19 @@ async function ensure() {
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`;
   // Add new columns if table already exists (migration)
-  const migrations = [
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS nombre TEXT`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS descripcion TEXT`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS fecha_firma DATE`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cantidad_meses INTEGER DEFAULT 12`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS fecha_renovacion DATE`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS url_contrato TEXT`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS forma_pago TEXT`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS monto_contrato NUMERIC DEFAULT 0`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS nombre_facturar TEXT`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS factura_extranjera BOOLEAN DEFAULT false`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aplica_iva BOOLEAN DEFAULT false`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS porcentaje_iva NUMERIC DEFAULT 13`,
-    `ALTER TABLE contratos ADD COLUMN IF NOT EXISTS gerente_cuenta TEXT`,
-  ];
-  for (const m of migrations) {
-    try { await sql.unsafe(m); } catch {}
-  }
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS nombre TEXT`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS descripcion TEXT`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS fecha_firma DATE`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS cantidad_meses INTEGER DEFAULT 12`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS fecha_renovacion DATE`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS url_contrato TEXT`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS forma_pago TEXT`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS monto_contrato NUMERIC DEFAULT 0`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS nombre_facturar TEXT`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS factura_extranjera BOOLEAN DEFAULT false`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS aplica_iva BOOLEAN DEFAULT false`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS porcentaje_iva NUMERIC DEFAULT 13`; } catch {}
+  try { await sql`ALTER TABLE contratos ADD COLUMN IF NOT EXISTS gerente_cuenta TEXT`; } catch {}
 }
 
 const map = (r: any) => ({

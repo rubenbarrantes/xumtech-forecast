@@ -25,17 +25,14 @@ async function ensureTable() {
     )
   `;
   // migrations for existing tables
-  const migs = [
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS personas_dedicadas INTEGER NOT NULL DEFAULT 1`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS jira_id TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS tecnologia TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_inicio TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_vencimiento TEXT NOT NULL DEFAULT ''`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS renovable BOOLEAN NOT NULL DEFAULT true`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'`,
-    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS proveedores JSONB NOT NULL DEFAULT '[]'`,
-  ];
-  for (const m of migs) { try { await sql.unsafe(m); } catch {} }
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS personas_dedicadas INTEGER NOT NULL DEFAULT 1`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS jira_id TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS tecnologia TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_inicio TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_vencimiento TEXT NOT NULL DEFAULT ''`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS renovable BOOLEAN NOT NULL DEFAULT true`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'`; } catch {}
+  try { await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS proveedores JSONB NOT NULL DEFAULT '[]'`; } catch {}
 }
 
 function mapRow(row: any) {

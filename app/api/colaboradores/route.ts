@@ -24,19 +24,16 @@ async function ensure() {
     dias_libres_anio INTEGER DEFAULT 15,
     created_at TIMESTAMPTZ DEFAULT NOW()
   )`;
-  const migs = [
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS codigo_interno TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS nombre TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS apellidos TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS tipo_id TEXT DEFAULT 'Cédula de identidad'`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS cedula TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS correo TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS telefono TEXT`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS fecha_ingreso DATE`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`,
-    `ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dias_libres_anio INTEGER DEFAULT 15`,
-  ];
-  for (const m of migs) { try { await sql.unsafe(m); } catch {} }
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS codigo_interno TEXT`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS nombre TEXT`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS apellidos TEXT`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS tipo_id TEXT DEFAULT 'Cédula de identidad'`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS cedula TEXT`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS correo TEXT`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS telefono TEXT`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS fecha_ingreso DATE`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dias_libres_anio INTEGER DEFAULT 15`; } catch {}
 }
 
 const map = (r: any) => ({
