@@ -944,9 +944,9 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
                 <Select label="Proveedor" value={dispForm.colaborador}
                   onChange={e => {
                     const prov = (proveedores||[]).find(p => p.nombre === e.target.value);
-                    setDispForm(f => ({ ...f, colaborador: e.target.value, tribu: prov?.tribu || f.tribu, rol: prov?.especialidad || f.rol }));
+                    setDispForm(f => ({ ...f, colaborador: e.target.value, rol: prov?.especialidad || f.rol }));
                   }}
-                  options={[{ value: "", label: "Seleccionar..." }, ...(proveedores||[]).filter(p => p.estado === "Activo").map(p => ({ value: p.nombre, label: `${p.nombre} · ${p.tribu}${p.costoHora ? ` · ${p.monedaCosto} ${p.costoHora}/h` : ""}` }))]} />
+                  options={[{ value: "", label: "Seleccionar..." }, ...(proveedores||[]).filter(p => p.estado === "Activo").map(p => ({ value: p.nombre, label: `${p.nombre}${p.tribu ? ` · ${p.tribu}` : ""}${p.costoHora ? ` · ${p.monedaCosto} ${p.costoHora}/h` : ""}` }))]} />
               )}
 
               <div className="grid grid-cols-2 gap-3">
@@ -1482,7 +1482,7 @@ const TAMANIOS_EMPRESA = ["1-10","11-50","51-200","201-500","501-1000","1000+"];
 const PROVEEDOR_EMPTY = {
   codigo: "", nombre: "", tipo: "Persona física",
   cedula: "", correo: "", telefono: "",
-  especialidad: "", tribu: "Dunamis",
+  especialidad: "", tribu: "",
   costoHora: 0, monedaCosto: "USD",
   pais: "Costa Rica", notas: "", estado: "Activo",
   horasDia: 8,
@@ -1522,7 +1522,7 @@ function ProveedorFormFields({ f, setF, formErrors, setFormErrors, paises, maest
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Select label="Especialidad / Rol Operativo" value={f.especialidad} onChange={e => setF(x => ({ ...x, especialidad: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...(maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT).map(r => ({ value: r, label: r }))]} />
-        <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+        <Select label="Tribu (opcional)" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={[{ value: "", label: "Sin tribu fija" }, ...TRIBUS_DEFAULT.map(t => ({ value: t, label: t }))]} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         <Input label="Costo / hora" type="number" value={f.costoHora} onChange={e => setF(x => ({ ...x, costoHora: Number(e.target.value) }))} />
@@ -1609,7 +1609,7 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
   };
 
   const openEdit = (p) => {
-    setEditForm({ codigo: p.codigo||"", nombre: p.nombre, tipo: p.tipo||"Persona física", cedula: p.cedula||"", correo: p.correo||"", telefono: p.telefono||"", especialidad: p.especialidad||"", tribu: p.tribu||"Dunamis", costoHora: p.costoHora||0, monedaCosto: p.monedaCosto||"USD", pais: p.pais||"Costa Rica", notas: p.notas||"", estado: p.estado||"Activo", horasDia: p.horasDia||8 });
+    setEditForm({ codigo: p.codigo||"", nombre: p.nombre, tipo: p.tipo||"Persona física", cedula: p.cedula||"", correo: p.correo||"", telefono: p.telefono||"", especialidad: p.especialidad||"", tribu: p.tribu||"", costoHora: p.costoHora||0, monedaCosto: p.monedaCosto||"USD", pais: p.pais||"Costa Rica", notas: p.notas||"", estado: p.estado||"Activo", horasDia: p.horasDia||8 });
     setFormErrors({});
     setEditModal(p); setDetailModal(null);
   };
@@ -1656,7 +1656,7 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
         <KPI title="Activos" value={proveedores.filter(p => p.estado === "Activo").length} color="purple" />
         <KPI title="Personas" value={proveedores.filter(p => p.tipo === "Persona física" && p.estado === "Activo").length} color="blue" />
         <KPI title="Empresas" value={proveedores.filter(p => p.tipo === "Empresa" && p.estado === "Activo").length} color="green" />
-        <KPI title="Con disponibilidad" value={new Set(disponibilidad.filter(d => proveedores.some(p => p.nombre === d.colaborador)).map(d => d.colaborador)).size} color="amber" />
+        <KPI title="Con disponibilidad" value={new Set(disponibilidad.filter(d => (proveedores||[]).some(p => p.nombre === d.colaborador)).map(d => d.colaborador)).size} color="amber" />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
@@ -2236,7 +2236,7 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
       </div>
       <Input label="URL del contrato" value={f.urlContrato} onChange={e => setF(x => ({ ...x, urlContrato: e.target.value }))} placeholder="https://drive.google.com/..." />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+        <Select label="Tribu (opcional)" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={[{ value: "", label: "Sin tribu fija" }, ...TRIBUS_DEFAULT.map(t => ({ value: t, label: t }))]} />
         <Select label="Gerente de cuenta" value={f.gerenteCuenta} onChange={e => setF(x => ({ ...x, gerenteCuenta: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...gerentes.map(g => ({ value: g, label: g }))]} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2603,8 +2603,8 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, prov
 
   const esPiloto = params.pilotoPorPersona.includes(form.tribu);
   const personasTribu = colaboradores.filter(c => c.tribu === form.tribu && c.status === "Activo");
-  const proveedoresTribu = (proveedores || []).filter(p => p.tribu === form.tribu && p.estado === "Activo");
-  const recursosTribu = form.tipoRecurso === "proveedor" ? proveedoresTribu : personasTribu;
+  const proveedoresActivos = (proveedores || []).filter(p => p.estado === "Activo");
+  const recursosTribu = form.tipoRecurso === "proveedor" ? proveedoresActivos : personasTribu;
   const serviciosFiltrados = servicios.filter(s => s.estado === "Activo");
 
   const servicio = servicios.find(s => s.id === Number(form.servicioId));
@@ -2818,15 +2818,15 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, prov
                 ...recursosTribu.map(r => ({
                   value: r.name || r.nombre,
                   label: form.tipoRecurso === "proveedor"
-                    ? `${r.nombre} ${r.costoHora ? `· ${r.monedaCosto} ${r.costoHora}/h` : ""}`.trim()
+                    ? `${r.nombre}${r.tribu ? ` · ${r.tribu}` : ""}${r.costoHora ? ` · ${r.monedaCosto} ${r.costoHora}/h` : ""}`.trim()
                     : r.name
                 }))
               ]}
             />
           )}
-          {form.tipoRecurso === "proveedor" && proveedoresTribu.length === 0 && (
+          {form.tipoRecurso === "proveedor" && proveedoresActivos.length === 0 && (
             <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
-              No hay proveedores activos en {form.tribu}. Configúralos en Consultoría → Proveedores.
+              No hay proveedores activos. Configúralos en Consultoría → Proveedores.
             </p>
           )}
 
