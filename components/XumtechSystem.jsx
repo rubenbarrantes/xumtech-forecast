@@ -2480,14 +2480,14 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 
 const VIEWS = [
+  { id: "parametros",    label: "Parámetros",     icon: "⚙" },
+  { id: "colaboradores", label: "Colaboradores",  icon: "◉" },
+  { id: "servicios",     label: "Servicios",      icon: "◫" },
   { id: "dashboard",     label: "Dashboard",      icon: "⬡" },
   { id: "utilizacion",   label: "Utilización",    icon: "◎" },
   { id: "asignaciones",  label: "Asignaciones",   icon: "◧" },
   { id: "forecast",      label: "Forecast",       icon: "↗" },
   { id: "simulador",     label: "Simulador",      icon: "⚡" },
-  { id: "colaboradores", label: "Colaboradores",  icon: "◉" },
-  { id: "parametros",    label: "Parámetros",     icon: "⚙" },
-  { id: "servicios",     label: "Servicios",      icon: "◫" },
   { id: "dunamis",       label: "Dunamis",        icon: "◈", tribu: true },
   { id: "yarigai",       label: "Yarigai",        icon: "◈", tribu: true },
   { id: "bulwak",        label: "Bulwak",         icon: "◈", tribu: true },
