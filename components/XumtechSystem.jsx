@@ -1465,7 +1465,7 @@ const PROVEEDOR_EMPTY = {
 const TIPOS_PROVEEDOR = ["Persona física", "Empresa"];
 
 // Form como componente de nivel superior para evitar re-mount en cada render
-function ProveedorFormFields({ f, setF, formErrors, setFormErrors, paises }) {
+function ProveedorFormFields({ f, setF, formErrors, setFormErrors, paises, maestros }) {
   const ErrMsg = ({ field }) => formErrors[field] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[field]}</p> : null;
   return (
     <div className="space-y-3">
@@ -1671,13 +1671,13 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
 
       {/* Modal nuevo */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo proveedor">
-        <ProveedorFormFields f={form} setF={setForm} formErrors={formErrors} setFormErrors={setFormErrors} paises={paises} />
+        <ProveedorFormFields f={form} setF={setForm} formErrors={formErrors} setFormErrors={setFormErrors} paises={paises} maestros={maestros} />
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
 
       {/* Modal editar */}
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
-        <ProveedorFormFields f={editForm} setF={setEditForm} formErrors={formErrors} setFormErrors={setFormErrors} paises={paises} />
+        <ProveedorFormFields f={editForm} setF={setEditForm} formErrors={formErrors} setFormErrors={setFormErrors} paises={paises} maestros={maestros} />
         <div className="flex justify-between pt-4">
           <Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn>
           <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div>
