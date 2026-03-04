@@ -246,266 +246,269 @@ function BarUtil({ pct, objetivo }) {
 
 const AUSENCIA_FORM_EMPTY = { mes: "2026-01", fecha: "", dias: 1, tipo: "Vacaciones", notas: "" };
 
-function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAusencias, calendar, params }) {
+function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAusencias, calendar, params, maestros }) {
+  const MOTIVOS_AUSENCIA = ["Vacaciones","Incapacidad","Permiso con goce","Permiso sin goce","Feriado","Capacitación","Otro"];
+  const TIPOS_ID = ["Cédula de identidad","DIMEX","Pasaporte","Otro"];
 
   const [search, setSearch] = useState("");
   const [tribFilter, setTribFilter] = useState("Todas");
   const [statusFilter, setStatusFilter] = useState("Activo");
-  const [modalOpen, setModalOpen] = useState(false);
-  const [profileOpen, setProfileOpen] = useState(null);
-  const [ausenciaModal, setAusenciaModal] = useState(null); // { nombre, editId? }
-  const [ausenciaForm, setAusenciaForm] = useState(AUSENCIA_FORM_EMPTY);
-  const [editColabModal, setEditColabModal] = useState(null);
-  const [form, setForm] = useState({ name: "", rolPrincipal: "Técnico", tribu: "Dunamis", status: "Activo", email: "", horasDia: 8 });
+  const [modal, setModal] = useState(false);
+  const [detailModal, setDetailModal] = useState(null);
+  const [editModal, setEditModal] = useState(null);
+  const [ausenciaModal, setAusenciaModal] = useState(null);
+  const [ausenciaForm, setAusenciaForm] = useState({ fecha: "", motivo: "Vacaciones", descripcion: "", dias: 1 });
+  const [form, setForm] = useState({ codigoInterno: "", nombre: "", apellidos: "", tipoId: "Cédula de identidad", cedula: "", correo: "", telefono: "", fechaIngreso: "", fechaNacimiento: "", tribu: "Dunamis", rolPrincipal: "Técnico", diasLibresAnio: 15, horasDia: 8, status: "Activo" });
+  const [editForm, setEditForm] = useState({});
+  const [formErrors, setFormErrors] = useState({});
 
   const calDesc = [...calendar].sort((a, b) => b.mes.localeCompare(a.mes));
-
-  const filtered = colaboradores.filter(c =>
-    (tribFilter === "Todas" || c.tribu === tribFilter) &&
-    (statusFilter === "Todos" || c.status === statusFilter) &&
-    c.name.toLowerCase().includes(search.toLowerCase())
+  const filtered = colaboradores.filter(co =>
+    (tribFilter === "Todas" || co.tribu === tribFilter) &&
+    (statusFilter === "Todos" || co.status === statusFilter) &&
+    (`${co.name||""} ${co.apellidos||""}`.toLowerCase().includes(search.toLowerCase()) ||
+     (co.codigoInterno||"").toLowerCase().includes(search.toLowerCase()))
   );
 
-  const handleAddColab = async () => {
-    if (!form.name.trim()) return;
-    const body = { ...form, horasDia: Number(form.horasDia) };
+  const genCodigo = () => `COL-${String(Date.now()).slice(-5)}`;
+
+  const validateForm = (f) => {
+    const e = {};
+    if (!f.nombre?.trim()) e.nombre = "Requerido";
+    if (!f.apellidos?.trim()) e.apellidos = "Requerido";
+    if (f.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.correo)) e.correo = "Email inválido";
+    if (f.telefono && !/^[+\d\s\-()\-]{6,20}$/.test(f.telefono)) e.telefono = "Formato inválido";
+    return e;
+  };
+
+  const handleAdd = async () => {
+    const errs = validateForm(form);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const body = { ...form, codigoInterno: form.codigoInterno || genCodigo(), name: `${form.nombre} ${form.apellidos}`.trim(), horasDia: Number(form.horasDia), diasLibresAnio: Number(form.diasLibresAnio) };
     const res = await fetch("/api/colaboradores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
     setColaboradores(p => [...p, saved]);
-    setModalOpen(false);
-    setForm({ name: "", rolPrincipal: "Técnico", tribu: "Dunamis", status: "Activo", email: "", horasDia: 8 });
+    setModal(false);
+    setForm({ codigoInterno: "", nombre: "", apellidos: "", tipoId: "Cédula de identidad", cedula: "", correo: "", telefono: "", fechaIngreso: "", fechaNacimiento: "", tribu: "Dunamis", rolPrincipal: "Técnico", diasLibresAnio: 15, horasDia: 8, status: "Activo" });
+    setFormErrors({});
+  };
+
+  const handleEdit = async () => {
+    const errs = validateForm(editForm);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const body = { ...editForm, name: `${editForm.nombre} ${editForm.apellidos}`.trim(), horasDia: Number(editForm.horasDia), diasLibresAnio: Number(editForm.diasLibresAnio) };
+    const res = await fetch("/api/colaboradores", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editModal.id, ...body }) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setColaboradores(p => p.map(co => co.id === editModal.id ? saved : co));
+    setEditModal(null); setDetailModal(null); setFormErrors({});
   };
 
   const handleToggleStatus = async (id) => {
-    const colab = colaboradores.find(c => c.id === id);
-    if (!colab) return;
-    const updated = { ...colab, status: colab.status === "Activo" ? "Inactivo" : "Activo" };
+    const co = colaboradores.find(x => x.id === id);
+    if (!co) return;
+    const updated = { ...co, status: co.status === "Activo" ? "Inactivo" : "Activo" };
     await fetch("/api/colaboradores", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(updated) });
-    setColaboradores(p => p.map(c => c.id === id ? updated : c));
+    setColaboradores(p => p.map(x => x.id === id ? updated : x));
+    if (detailModal?.id === id) setDetailModal(updated);
   };
 
-  const openNuevaAusencia = (nombre) => {
-    setAusenciaForm({ ...AUSENCIA_FORM_EMPTY, mes: calDesc[0]?.mes || "2026-01" });
-    setAusenciaModal({ nombre, editId: null });
-  };
-
-  const openEditAusencia = (a) => {
-    setAusenciaForm({ mes: a.mes, fecha: a.fecha || "", dias: a.dias, tipo: a.tipo, notas: a.notas || "" });
-    setAusenciaModal({ nombre: a.colaborador, editId: a.id });
-  };
-
-  const handleSaveAusencia = async () => {
-    if (!ausenciaModal) return;
-    const cal = calendar.find(c => c.mes === ausenciaForm.mes);
-    const max = cal ? cal.diasLaborales : 20;
-    if (Number(ausenciaForm.dias) > max) return alert(`Máximo ${max} días laborales en ${cal?.label}`);
-    if (Number(ausenciaForm.dias) < 1) return alert("Mínimo 1 día");
-    const body = { ...ausenciaForm, dias: Number(ausenciaForm.dias), colaborador: ausenciaModal.nombre };
-    if (ausenciaModal.editId) {
-      await fetch("/api/ausencias", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...body, id: ausenciaModal.editId }) });
-      setAusencias(p => p.map(a => a.id === ausenciaModal.editId ? { ...a, ...body } : a));
-    } else {
-      const res = await fetch("/api/ausencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-      const saved = await res.json();
-      setAusencias(p => [...p, saved]);
-    }
-    setAusenciaModal(null);
+  const handleAddAusencia = async () => {
+    if (!ausenciaModal || !ausenciaForm.fecha) return;
+    const body = { ...ausenciaForm, dias: Number(ausenciaForm.dias), colaborador: ausenciaModal.name, mes: ausenciaForm.fecha.substring(0, 7) };
+    const res = await fetch("/api/ausencias", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    setAusencias(p => [...p, saved]);
+    setAusenciaForm({ fecha: "", motivo: "Vacaciones", descripcion: "", dias: 1 });
   };
 
   const handleDeleteAusencia = async (id) => {
-    if (!confirm("¿Eliminar esta ausencia?")) return;
     await fetch("/api/ausencias", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
     setAusencias(p => p.filter(a => a.id !== id));
   };
 
-  const getAusenciasColab = (name) => [...ausencias.filter(a => a.colaborador === name)].sort((a, b) => b.mes.localeCompare(a.mes));
-  const totalDiasAusente = (name) => ausencias.filter(a => a.colaborador === name).reduce((s, a) => s + a.dias, 0);
+  const openEdit = (co) => {
+    const parts = (co.name || "").split(" ");
+    setEditForm({
+      codigoInterno: co.codigoInterno || "", nombre: co.nombre || parts[0] || "", apellidos: co.apellidos || parts.slice(1).join(" ") || "",
+      tipoId: co.tipoId || "Cédula de identidad", cedula: co.cedula || "", correo: co.correo || co.email || "",
+      telefono: co.telefono || "", fechaIngreso: co.fechaIngreso || "", fechaNacimiento: co.fechaNacimiento || "",
+      tribu: co.tribu || "Dunamis", rolPrincipal: co.rolPrincipal || "Técnico",
+      diasLibresAnio: co.diasLibresAnio || 15, horasDia: co.horasDia || 8, status: co.status || "Activo"
+    });
+    setFormErrors({});
+    setEditModal(co);
+    setDetailModal(null);
+  };
+
+  const ErrMsg = ({ f }) => formErrors[f] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[f]}</p> : null;
+
+  const ColabForm = ({ f, setF }) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Código interno" value={f.codigoInterno} onChange={e => setF(x => ({ ...x, codigoInterno: e.target.value }))} placeholder="COL-XXXXX (auto)" /><p className="text-xs text-slate-500 mt-0.5">Dejar vacío para generar automático</p></div>
+        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Nombre *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} /><ErrMsg f="nombre" /></div>
+        <div><Input label="Apellidos *" value={f.apellidos} onChange={e => { setF(x => ({ ...x, apellidos: e.target.value })); setFormErrors(er => ({ ...er, apellidos: "" })); }} /><ErrMsg f="apellidos" /></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tipo de ID" value={f.tipoId} onChange={e => setF(x => ({ ...x, tipoId: e.target.value }))} options={TIPOS_ID} />
+        <Input label="N° Identificación" value={f.cedula} onChange={e => setF(x => ({ ...x, cedula: e.target.value }))} placeholder="1-XXXX-XXXX" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div><Input label="Correo" value={f.correo} onChange={e => { setF(x => ({ ...x, correo: e.target.value })); setFormErrors(er => ({ ...er, correo: "" })); }} placeholder="nombre@xumtech.com" /><ErrMsg f="correo" /></div>
+        <div><Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()\-]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" /><ErrMsg f="telefono" /></div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Fecha de ingreso" type="date" value={f.fechaIngreso} onChange={e => setF(x => ({ ...x, fechaIngreso: e.target.value }))} />
+        <Input label="Fecha de nacimiento" type="date" value={f.fechaNacimiento} onChange={e => setF(x => ({ ...x, fechaNacimiento: e.target.value }))} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Rol principal" value={f.rolPrincipal} onChange={e => setF(x => ({ ...x, rolPrincipal: e.target.value }))} options={ROLES_DEFAULT} />
+        <Input label="Horas/día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: e.target.value }))} />
+        <Input label="Días libres/año" type="number" value={f.diasLibresAnio} onChange={e => setF(x => ({ ...x, diasLibresAnio: e.target.value }))} />
+      </div>
+    </div>
+  );
+
+  const ausenciasDeColab = (name) => ausencias.filter(a => a.colaborador === name);
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-3">
-        {["Todas", ...TRIBUS_DEFAULT].map(t => {
-          const count = colaboradores.filter(c => (t === "Todas" ? true : c.tribu === t) && c.status === "Activo").length;
-          return <KPI key={t} title={t === "Todas" ? "Total activos" : t} value={count} color={t === "Todas" ? "blue" : "green"} />;
-        })}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI title="Activos" value={colaboradores.filter(c => c.status === "Activo").length} color="blue" />
+        {TRIBUS_DEFAULT.map(t => <KPI key={t} title={t} value={colaboradores.filter(c => c.tribu === t && c.status === "Activo").length} color="green" />)}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar colaborador..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
-        <div className="flex gap-1">
-          {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
-        </div>
-        <div className="flex gap-1">
-          {["Todos", "Activo", "Inactivo"].map(s => <button key={s} onClick={() => setStatusFilter(s)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{s}</button>)}
-        </div>
-        <Btn variant="primary" size="sm" onClick={() => setModalOpen(true)} className="ml-auto">+ Agregar colaborador</Btn>
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar colaborador o código..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
+        <div className="flex gap-1">{["Todas",...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}</div>
+        <div className="flex gap-1">{["Activo","Inactivo","Todos"].map(s => <button key={s} onClick={() => setStatusFilter(s)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${statusFilter === s ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{s}</button>)}</div>
+        <Btn size="sm" onClick={() => { setModal(true); setFormErrors({}); }} className="ml-auto">+ Nuevo colaborador</Btn>
       </div>
 
-      <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-        <table className="w-full text-sm">
-          <thead className="bg-slate-800/80">
-            <tr>{["Colaborador", "Tribu", "Rol Principal", "Horas/día", "Estado", "Días ausentes", "Acciones"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
-          </thead>
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table className="w-full text-sm min-w-[700px]">
+          <thead className="bg-slate-800/80"><tr>{["ID","Nombre","Rol","Tribu","Correo","Teléfono","Ingreso","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
           <tbody>
-            {filtered.map(c => {
-              const totalDias = totalDiasAusente(c.name);
-              return (
-                <tr key={c.id} className="border-t border-slate-700/30 hover:bg-slate-800/30 transition-colors">
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-3">
-                      <div className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: TRIBU_COLORS[c.tribu] + "30", color: TRIBU_COLORS[c.tribu] }}>{c.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
-                      <div>
-                        <p className="text-white font-medium">{c.name}</p>
-                        {c.email && <p className="text-xs text-slate-500">{c.email}</p>}
-                      </div>
-                    </div>
-                  </td>
-                  <td className="px-4 py-3"><Pill label={c.tribu} color={c.tribu} /></td>
-                  <td className="px-4 py-3"><Pill label={c.rolPrincipal} color={c.rolPrincipal} /></td>
-                  <td className="px-4 py-3 text-slate-300 font-mono text-xs">{c.horasDia}h</td>
-                  <td className="px-4 py-3"><Badge color={c.status === "Activo" ? "green" : "gray"}>{c.status}</Badge></td>
-                  <td className="px-4 py-3">
-                    {totalDias > 0 ? <span className="text-xs text-amber-400 font-mono font-bold">{totalDias}d</span> : <span className="text-xs text-slate-600">—</span>}
-                  </td>
-                  <td className="px-4 py-3 flex items-center gap-2">
-                    <Btn variant="ghost" size="sm" onClick={() => setProfileOpen(c)}>Perfil</Btn>
-                    <Btn variant="ghost" size="sm" onClick={() => openNuevaAusencia(c.name)}>+ Ausencia</Btn>
-                    <Btn variant={c.status === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleStatus(c.id)}>{c.status === "Activo" ? "Desactivar" : "Activar"}</Btn>
-                  </td>
-                </tr>
-              );
-            })}
+            {filtered.map(co => (
+              <tr key={co.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${co.status === "Inactivo" ? "opacity-50" : ""}`}>
+                <td className="px-3 py-3"><button onClick={() => setDetailModal(co)} className="text-blue-400 font-mono text-xs hover:underline font-bold">{co.codigoInterno || `COL-${co.id}`}</button></td>
+                <td className="px-3 py-3"><button onClick={() => setDetailModal(co)} className="text-white font-medium hover:text-blue-300 text-left">{co.name}</button></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Pill label={co.rolPrincipal} color={co.rolPrincipal} /></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Pill label={co.tribu} color={co.tribu} /></td>
+                <td className="px-3 py-3 text-slate-400 text-xs">{co.correo || co.email || "—"}</td>
+                <td className="px-3 py-3 text-slate-400 text-xs font-mono">{co.telefono || "—"}</td>
+                <td className="px-3 py-3 text-slate-400 text-xs whitespace-nowrap">{co.fechaIngreso || "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color={co.status === "Activo" ? "green" : "gray"}>{co.status}</Badge></td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <div className="flex gap-1">
+                    <Btn variant="ghost" size="sm" onClick={() => openEdit(co)}>✏️</Btn>
+                    <Btn variant="ghost" size="sm" onClick={() => { setAusenciaModal(co); setAusenciaForm({ fecha: "", motivo: "Vacaciones", descripcion: "", dias: 1 }); }}>📅</Btn>
+                    <Btn variant={co.status === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleStatus(co.id)}>{co.status === "Activo" ? "Off" : "On"}</Btn>
+                  </div>
+                </td>
+              </tr>
+            ))}
           </tbody>
         </table>
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron colaboradores</p>}
       </div>
 
-      {/* Modal: Nuevo colaborador */}
-      <Modal open={modalOpen} onClose={() => setModalOpen(false)} title="Nuevo colaborador">
-        <div className="space-y-4">
-          <Input label="Nombre completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nombre Apellido" />
-          <Input label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@xumtech.com" />
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="Rol principal" value={form.rolPrincipal} onChange={e => setForm(f => ({ ...f, rolPrincipal: e.target.value }))} options={ROLES_DEFAULT} />
-            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-          </div>
-          <div className="grid grid-cols-2 gap-3">
-            <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={["Activo", "Inactivo"]} />
-            <Input label="Horas por día" type="number" value={form.horasDia} onChange={e => setForm(f => ({ ...f, horasDia: e.target.value }))} />
-          </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Btn variant="ghost" onClick={() => setModalOpen(false)}>Cancelar</Btn>
-            <Btn onClick={handleAddColab}>Guardar</Btn>
-          </div>
+      {/* Modal nuevo */}
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo colaborador">
+        <ColabForm f={form} setF={setForm} />
+        <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
+      </Modal>
+
+      {/* Modal editar */}
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.name}`}>
+        <ColabForm f={editForm} setF={setEditForm} />
+        <div className="flex justify-between pt-4">
+          <Btn variant={editModal?.status === "Activo" ? "danger" : "ghost"} onClick={() => { handleToggleStatus(editModal.id); setEditModal(null); }}>{editModal?.status === "Activo" ? "Desactivar" : "Activar"}</Btn>
+          <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar cambios</Btn></div>
         </div>
       </Modal>
 
-      {/* Modal: Perfil */}
-      <Modal open={!!profileOpen} onClose={() => setProfileOpen(null)} title="Perfil del colaborador">
-        {profileOpen && (
-          <div className="space-y-4">
-            <div className="flex items-center gap-4 p-4 rounded-xl bg-slate-800/50 border border-slate-700/40">
-              <div className="w-12 h-12 rounded-full flex items-center justify-center text-lg font-bold" style={{ background: TRIBU_COLORS[profileOpen.tribu] + "30", color: TRIBU_COLORS[profileOpen.tribu] }}>{profileOpen.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
-              <div>
-                <p className="text-white font-semibold text-base">{profileOpen.name}</p>
-                <p className="text-xs text-slate-400">{profileOpen.email}</p>
-                <div className="flex gap-2 mt-1.5">
-                  <Pill label={profileOpen.tribu} color={profileOpen.tribu} />
-                  <Pill label={profileOpen.rolPrincipal} color={profileOpen.rolPrincipal} />
-                  <Badge color={profileOpen.status === "Activo" ? "green" : "gray"}>{profileOpen.status}</Badge>
-                </div>
+      {/* Modal detalle */}
+      <Modal open={!!detailModal} onClose={() => setDetailModal(null)} title={`${detailModal?.codigoInterno || ""} — ${detailModal?.name}`}>
+        {detailModal && (
+          <div className="space-y-2">
+            {[
+              ["Código interno", detailModal.codigoInterno || `COL-${detailModal.id}`],
+              ["Nombre completo", detailModal.name],
+              ["Tipo de ID", detailModal.tipoId || "—"],
+              ["N° Identificación", detailModal.cedula || "—"],
+              ["Correo", detailModal.correo || detailModal.email || "—"],
+              ["Teléfono", detailModal.telefono || "—"],
+              ["Tribu", detailModal.tribu],
+              ["Rol principal", detailModal.rolPrincipal],
+              ["Horas/día", detailModal.horasDia],
+              ["Días libres/año", detailModal.diasLibresAnio || 15],
+              ["Fecha ingreso", detailModal.fechaIngreso || "—"],
+              ["Fecha nacimiento", detailModal.fechaNacimiento || "—"],
+              ["Estado", detailModal.status],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30">
+                <span className="text-xs text-slate-500">{k}</span>
+                <span className="text-sm text-white font-medium">{v}</span>
               </div>
-            </div>
-
-            <div className="rounded-xl border border-slate-700/40 overflow-hidden">
-              <div className="px-4 py-2.5 bg-slate-800/60 flex items-center justify-between">
-                <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Días ausentes registrados</span>
-                <div className="flex items-center gap-3">
-                  <span className="text-xs text-amber-400 font-mono font-bold">{totalDiasAusente(profileOpen.name)}d total</span>
-                  <Btn size="sm" variant="ghost" onClick={() => { setProfileOpen(null); openNuevaAusencia(profileOpen.name); }}>+ Registrar</Btn>
-                </div>
-              </div>
-              {getAusenciasColab(profileOpen.name).length === 0
-                ? <p className="text-slate-500 text-xs p-4 text-center">Sin ausencias registradas</p>
-                : (
-                  <table className="w-full text-xs">
-                    <thead className="bg-slate-800/40">
-                      <tr>{["Mes", "Fecha", "Días", "Tipo", "Notas", ""].map(h => <th key={h} className="text-left px-3 py-2 text-slate-500 uppercase tracking-wider font-semibold">{h}</th>)}</tr>
-                    </thead>
-                    <tbody>
-                      {getAusenciasColab(profileOpen.name).map(a => (
-                        <tr key={a.id} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                          <td className="px-3 py-2 text-slate-300 font-mono">{a.mes}</td>
-                          <td className="px-3 py-2 text-slate-400">{a.fecha || "—"}</td>
-                          <td className="px-3 py-2 text-amber-400 font-mono font-bold">{a.dias}d</td>
-                          <td className="px-3 py-2"><Badge color="amber">{a.tipo}</Badge></td>
-                          <td className="px-3 py-2 text-slate-500 max-w-24 truncate">{a.notas || "—"}</td>
-                          <td className="px-3 py-2 flex gap-1">
-                            <button onClick={() => { setProfileOpen(null); openEditAusencia(a); }} className="text-blue-400 hover:text-blue-300 text-xs">✏️</button>
-                            <button onClick={() => handleDeleteAusencia(a.id)} className="text-red-400 hover:text-red-300 text-xs">🗑</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                )}
+            ))}
+            <div className="flex justify-between pt-3">
+              <Btn variant="ghost" size="sm" onClick={() => { setAusenciaModal(detailModal); setDetailModal(null); }}>📅 Ausencias</Btn>
+              <Btn size="sm" onClick={() => openEdit(detailModal)}>✏️ Editar</Btn>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Modal: Ausencia (crear / editar) */}
-      <Modal open={!!ausenciaModal} onClose={() => setAusenciaModal(null)} title={`${ausenciaModal?.editId ? "Editar" : "Registrar"} ausencia — ${ausenciaModal?.nombre}`}>
-        <div className="space-y-4">
-          <Select
-            label="Mes"
-            value={ausenciaForm.mes}
-            onChange={e => setAusenciaForm(f => ({ ...f, mes: e.target.value }))}
-            options={calDesc.map(c => ({ value: c.mes, label: `${c.label} (${c.diasLaborales}d lab.)` }))}
-          />
-          <Input label="Fecha específica (opcional)" type="date" value={ausenciaForm.fecha} onChange={e => setAusenciaForm(f => ({ ...f, fecha: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-3">
-            <Input label="Días a descontar" type="number" min="1" value={ausenciaForm.dias} onChange={e => setAusenciaForm(f => ({ ...f, dias: e.target.value }))} />
-            <Select label="Tipo" value={ausenciaForm.tipo} onChange={e => setAusenciaForm(f => ({ ...f, tipo: e.target.value }))} options={["Vacaciones", "Incapacidad", "Día libre", "Permiso", "Otro"]} />
-          </div>
-          <Input label="Notas (opcional)" value={ausenciaForm.notas} onChange={e => setAusenciaForm(f => ({ ...f, notas: e.target.value }))} placeholder="Motivo o descripción..." />
-          {ausenciaForm.mes && (
-            <p className="text-xs text-slate-500 bg-slate-800/40 rounded-lg p-3">
-              Días laborales en {calendar.find(c => c.mes === ausenciaForm.mes)?.label}: <strong className="text-white">{calendar.find(c => c.mes === ausenciaForm.mes)?.diasLaborales}</strong>
-            </p>
-          )}
-          <div className="flex justify-between pt-2">
-            {ausenciaModal?.editId && (
-              <Btn variant="danger" onClick={() => { handleDeleteAusencia(ausenciaModal.editId); setAusenciaModal(null); }}>Eliminar</Btn>
-            )}
-            <div className="flex gap-2 ml-auto">
-              <Btn variant="ghost" onClick={() => setAusenciaModal(null)}>Cancelar</Btn>
-              <Btn onClick={handleSaveAusencia}>Guardar</Btn>
+      {/* Modal ausencias */}
+      <Modal open={!!ausenciaModal} onClose={() => setAusenciaModal(null)} title={`Ausencias — ${ausenciaModal?.name}`}>
+        {ausenciaModal && (
+          <div className="space-y-4">
+            <div className="space-y-2 max-h-48 overflow-y-auto">
+              {ausenciasDeColab(ausenciaModal.name).length === 0
+                ? <p className="text-slate-500 text-sm text-center py-3">Sin ausencias registradas</p>
+                : ausenciasDeColab(ausenciaModal.name).sort((a, b) => (b.fecha||b.mes) > (a.fecha||a.mes) ? 1 : -1).map(a => (
+                  <div key={a.id} className="bg-slate-800/40 rounded-lg p-3 flex items-start justify-between border border-slate-700/30">
+                    <div>
+                      <div className="flex items-center gap-2">
+                        <span className="text-xs font-mono text-blue-400">{a.fecha || a.mes}</span>
+                        <Badge color="blue">{a.tipo || a.motivo}</Badge>
+                        <span className="text-xs text-slate-400">{a.dias}d</span>
+                      </div>
+                      {(a.descripcion || a.notas) && <p className="text-xs text-slate-500 mt-1">{a.descripcion || a.notas}</p>}
+                    </div>
+                    <button onClick={() => handleDeleteAusencia(a.id)} className="text-red-400 hover:text-red-300 text-xs ml-2">✕</button>
+                  </div>
+                ))
+              }
+            </div>
+            <div className="border-t border-slate-700/50 pt-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase">Registrar ausencia</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                <Input label="Fecha" type="date" value={ausenciaForm.fecha} onChange={e => setAusenciaForm(f => ({ ...f, fecha: e.target.value }))} />
+                <Input label="Días" type="number" value={ausenciaForm.dias} onChange={e => setAusenciaForm(f => ({ ...f, dias: e.target.value }))} />
+              </div>
+              <Select label="Motivo" value={ausenciaForm.motivo} onChange={e => setAusenciaForm(f => ({ ...f, motivo: e.target.value }))} options={MOTIVOS_AUSENCIA} />
+              <div><label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Descripción</label><textarea value={ausenciaForm.descripcion} onChange={e => setAusenciaForm(f => ({ ...f, descripcion: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" /></div>
+              <div className="flex justify-end"><Btn size="sm" onClick={handleAddAusencia}>+ Registrar</Btn></div>
             </div>
           </div>
-        </div>
+        )}
       </Modal>
     </div>
   );
 }
 
-// Helper: inline add item
-function AddItemInline({ placeholder, onAdd }) {
-  const [val, setVal] = useState("");
-  return (
-    <div className="flex items-center gap-1">
-      <input value={val} onChange={e => setVal(e.target.value)} onKeyDown={e => { if (e.key === "Enter" && val.trim()) { onAdd(val.trim()); setVal(""); } }}
-        placeholder={placeholder} className="bg-slate-800 border border-slate-600 rounded-lg px-2 py-1 text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-32" />
-      <button onClick={() => { if (val.trim()) { onAdd(val.trim()); setVal(""); } }} className="text-xs bg-blue-600 hover:bg-blue-700 text-white px-2 py-1 rounded-lg">+</button>
-    </div>
-  );
-}
+function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros, forceTab }) {
 
-// ─── MÓDULO: PARÁMETROS ───────────────────────────────────────────────────────
-
-function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros }) {
-
-  const [tab, setTab] = useState("calendario");
+  const [tabInternal, setTabInternal] = useState("calendario");
+  const tab = forceTab || tabInternal;
+  const setTab = forceTab ? () => {} : setTabInternal;
   const [dispForm, setDispForm] = useState({ colaborador: "", rol: "Técnico", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 });
   const [dispModal, setDispModal] = useState(false);
   const [calModal, setCalModal] = useState(false);
@@ -594,11 +597,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
   return (
     <div className="space-y-5">
-      <div className="flex gap-1 border-b border-slate-700/50 pb-1 flex-wrap">
-        {[["calendario", "📅 Calendario"], ["parametros", "⚙️ Parámetros"], ["disponibilidad", "📊 Disponibilidad Bruta"], ["neto", "📈 Disponibilidad Neta"], ["maestros", "📋 Maestros"]].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700 border-b-transparent" : "text-slate-400 hover:text-white"}`}>{label}</button>
-        ))}
-      </div>
+      {/* tabs manejados por ModuloConfiguracion */}
 
       {/* TAB: PARÁMETROS GLOBALES */}
       {tab === "parametros" && (
@@ -1746,40 +1745,68 @@ function ModuloContactos({ contactos, setContactos, clientes }) {
 // ─── MÓDULO: CONTRATOS ────────────────────────────────────────────────────────
 
 const CONTRATO_EMPTY = {
-  numero: "", clienteId: "", tipo: "Retención Mensual", moneda: "USD",
-  montoMensual: 0, montoTotal: 0, tribu: "Dunamis", po: "",
-  fechaInicio: "", fechaVencimiento: "", renovacionAutomatica: false,
-  estado: "Activo", notas: "",
+  numero: "", clienteId: "", nombre: "", descripcion: "",
+  tipo: "Soporte Evolutivo", estado: "Activo",
+  fechaFirma: "", fechaInicio: "", cantidadMeses: 12, fechaVencimiento: "", fechaRenovacion: "",
+  urlContrato: "", tribu: "Dunamis", formaPago: "Transferencia",
+  moneda: "USD", montoContrato: 0, nombreFacturar: "",
+  facturaExtranjera: false, aplicaIVA: false, porcentajeIVA: 13,
+  gerenteCuenta: "", notas: "",
 };
 
+function calcFechas(fechaInicio, meses) {
+  if (!fechaInicio || !meses) return { fechaVencimiento: "", fechaRenovacion: "" };
+  const inicio = new Date(fechaInicio);
+  const venc = new Date(inicio);
+  venc.setMonth(venc.getMonth() + Number(meses));
+  const renov = new Date(venc);
+  renov.setDate(renov.getDate() - 45); // 1.5 meses antes
+  const fmt = d => d.toISOString().substring(0, 10);
+  return { fechaVencimiento: fmt(venc), fechaRenovacion: fmt(renov) };
+}
+
 function ModuloContratos({ contratos, setContratos, clientes, colaboradores, maestros }) {
+  const FORMAS_PAGO = maestros?.formasPago?.length ? maestros.formasPago : ["Transferencia","Cheque","Tarjeta","SINPE","Otro"];
+  const MONEDAS = ["USD","CRC","EUR"];
+  const TIPOS_CONTRATO = ["Proyecto","Licencias Oracle","Licencias Salesforce","Licencias XumTech","Licencias Terceros","Soporte Crítico","Soporte Evolutivo","Soporte Evolutivo + Crítico","Talento Dedicado"];
+  const ESTADOS = ["Activo","Inactivo","En revisión","Vencido","Cancelado"];
+
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("Activo");
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState(null);
-  const [form, setForm] = useState(CONTRATO_EMPTY);
+  const [detailModal, setDetailModal] = useState(null);
+  const [form, setForm] = useState({ ...CONTRATO_EMPTY, numero: `CN-${String(Date.now()).slice(-5)}` });
   const [editForm, setEditForm] = useState(CONTRATO_EMPTY);
-  const [detail, setDetail] = useState(null);
 
-  const tiposContrato = maestros?.tiposContrato?.length ? maestros.tiposContrato : TIPOS_CONTRATO_DEFAULT;
-  const pos = colaboradores.filter(c => c.status === "Activo").map(c => c.name).sort();
-  const clienteNombre = (id) => clientes.find(c => c.id === id || String(c.id) === String(id))?.nombre || "—";
+  const gerentes = colaboradores.filter(c => c.status === "Activo").map(c => c.name).sort();
+  const clienteNombre = (id) => clientes.find(c => String(c.id) === String(id))?.nombre || "—";
+
+  const updateFechas = (f, setF, field, val) => {
+    const next = { ...f, [field]: val };
+    if (field === "fechaInicio" || field === "cantidadMeses") {
+      const { fechaVencimiento, fechaRenovacion } = calcFechas(next.fechaInicio, next.cantidadMeses);
+      next.fechaVencimiento = fechaVencimiento;
+      next.fechaRenovacion = fechaRenovacion;
+    }
+    setF(next);
+  };
 
   const filtered = contratos.filter(c =>
     (estadoFilter === "Todos" || c.estado === estadoFilter) &&
     ((c.numero||"").toLowerCase().includes(search.toLowerCase()) ||
+     (c.nombre||"").toLowerCase().includes(search.toLowerCase()) ||
      clienteNombre(c.clienteId).toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleAdd = async () => {
     if (!form.clienteId) { alert("Selecciona un cliente"); return; }
-    const autoNum = form.numero.trim() || `CN-${String(Date.now()).slice(-5)}`;
-    const body = { ...form, numero: autoNum };
-    const res = await fetch("/api/contratos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const res = await fetch("/api/contratos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
     const saved = await res.json();
     if (saved.error) { alert(saved.error); return; }
     setContratos(p => [...p, saved]);
-    setModal(false); setForm({ ...CONTRATO_EMPTY, numero: `CN-${String(Date.now()).slice(-5)}` });
+    setModal(false);
+    setForm({ ...CONTRATO_EMPTY, numero: `CN-${String(Date.now()).slice(-5)}` });
   };
 
   const handleEdit = async () => {
@@ -1794,97 +1821,147 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
     if (!confirm(`¿Eliminar contrato "${c.numero}"?`)) return;
     await fetch("/api/contratos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: c.id }) });
     setContratos(p => p.filter(x => x.id !== c.id));
-    setDetail(null); setEditModal(null);
-  };
-
-  const handleToggleEstado = async (c) => {
-    const body = { ...c, estado: c.estado === "Activo" ? "Inactivo" : "Activo" };
-    const res = await fetch("/api/contratos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
-    const saved = await res.json();
-    if (!saved.error) setContratos(p => p.map(x => x.id === c.id ? { ...x, estado: body.estado } : x));
+    setDetailModal(null); setEditModal(null);
   };
 
   const openEdit = (c) => {
-    setEditForm({ numero: c.numero, clienteId: String(c.clienteId), tipo: c.tipo, moneda: c.moneda, montoMensual: c.montoMensual||0, montoTotal: c.montoTotal||0, tribu: c.tribu||"Dunamis", po: c.po||"", fechaInicio: c.fechaInicio||"", fechaVencimiento: c.fechaVencimiento||"", renovacionAutomatica: !!c.renovacionAutomatica, estado: c.estado, notas: c.notas||"" });
-    setEditModal(c); setDetail(null);
+    setEditForm({ numero: c.numero, clienteId: String(c.clienteId||""), nombre: c.nombre||"", descripcion: c.descripcion||"", tipo: c.tipo||"Soporte Evolutivo", estado: c.estado||"Activo", fechaFirma: c.fechaFirma||"", fechaInicio: c.fechaInicio||"", cantidadMeses: c.cantidadMeses||12, fechaVencimiento: c.fechaVencimiento||"", fechaRenovacion: c.fechaRenovacion||"", urlContrato: c.urlContrato||"", tribu: c.tribu||"Dunamis", formaPago: c.formaPago||"Transferencia", moneda: c.moneda||"USD", montoContrato: c.montoContrato||0, nombreFacturar: c.nombreFacturar||"", facturaExtranjera: !!c.facturaExtranjera, aplicaIVA: !!c.aplicaIVA, porcentajeIVA: c.porcentajeIVA||13, gerenteCuenta: c.gerenteCuenta||"", notas: c.notas||"" });
+    setEditModal(c); setDetailModal(null);
   };
 
-  const VigenciaTag = ({ fecha }) => {
-    if (!fecha) return <span className="text-slate-500 text-xs">Sin fecha</span>;
-    const dias = Math.ceil((new Date(fecha) - new Date()) / 86400000);
-    const color = dias < 0 ? "text-red-400" : dias <= 60 ? "text-amber-400" : "text-emerald-400";
-    return <span className={`text-xs font-mono font-semibold ${color}`}>{dias < 0 ? `Venció ${Math.abs(dias)}d` : dias <= 30 ? `${dias}d ⚠` : fecha}</span>;
+  const VigTag = ({ fecha }) => {
+    if (!fecha) return <span className="text-slate-500 text-xs">—</span>;
+    try {
+      const dias = Math.ceil((new Date(fecha) - new Date()) / 86400000);
+      const color = dias < 0 ? "text-red-400" : dias <= 60 ? "text-amber-400" : "text-emerald-400";
+      return <span className={`text-xs font-mono font-semibold ${color}`}>{dias < 0 ? `Venció ${Math.abs(dias)}d` : dias <= 30 ? `${dias}d ⚠` : fecha}</span>;
+    } catch { return <span className="text-slate-500 text-xs">{fecha}</span>; }
   };
 
   const ContratoForm = ({ f, setF }) => (
-    <div className="space-y-3">
+    <div className="space-y-3 max-h-[65vh] overflow-y-auto pr-1">
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="N° Contrato (auto si vacío)" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-XXXXX (se genera automático)" />
+        <Input label="N° Contrato *" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-XXXXX" />
         <Select label="Cliente *" value={f.clienteId} onChange={e => setF(x => ({ ...x, clienteId: e.target.value }))} options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
       </div>
+      <Input label="Nombre del contrato" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Ej: Contrato Soporte Oracle 2026" />
+      <div><label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Descripción</label><textarea value={f.descripcion} onChange={e => setF(x => ({ ...x, descripcion: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" /></div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={tiposContrato} />
-        <Select label="Moneda" value={f.moneda} onChange={e => setF(x => ({ ...x, moneda: e.target.value }))} options={["USD","CRC","EUR"]} />
+        <Select label="Tipo contrato" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_CONTRATO} />
+        <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={ESTADOS} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input label="Fecha de firma" type="date" value={f.fechaFirma} onChange={e => setF(x => ({ ...x, fechaFirma: e.target.value }))} />
+        <Input label="Fecha de inicio" type="date" value={f.fechaInicio} onChange={e => updateFechas(f, setF, "fechaInicio", e.target.value)} />
+        <Input label="Cantidad de meses" type="number" value={f.cantidadMeses} onChange={e => updateFechas(f, setF, "cantidadMeses", e.target.value)} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Monto mensual" type="number" value={f.montoMensual} onChange={e => setF(x => ({ ...x, montoMensual: Number(e.target.value) }))} />
-        <Input label="Monto total contrato" type="number" value={f.montoTotal} onChange={e => setF(x => ({ ...x, montoTotal: Number(e.target.value) }))} />
+        <div><Input label="Fecha vencimiento (auto)" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} /><p className="text-xs text-slate-500 mt-0.5">Calculada automáticamente</p></div>
+        <div><Input label="Fecha renovación (auto)" value={f.fechaRenovacion} onChange={e => setF(x => ({ ...x, fechaRenovacion: e.target.value }))} /><p className="text-xs text-slate-500 mt-0.5">45 días antes del vencimiento</p></div>
       </div>
+      <Input label="URL del contrato" value={f.urlContrato} onChange={e => setF(x => ({ ...x, urlContrato: e.target.value }))} placeholder="https://drive.google.com/..." />
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-        <Select label="PO / Responsable" value={f.po} onChange={e => setF(x => ({ ...x, po: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]} />
+        <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+        <Select label="Gerente de cuenta" value={f.gerenteCuenta} onChange={e => setF(x => ({ ...x, gerenteCuenta: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...gerentes.map(g => ({ value: g, label: g }))]} />
       </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
-        <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Forma de pago" value={f.formaPago} onChange={e => setF(x => ({ ...x, formaPago: e.target.value }))} options={FORMAS_PAGO} />
+        <Select label="Moneda" value={f.moneda} onChange={e => setF(x => ({ ...x, moneda: e.target.value }))} options={MONEDAS} />
+        <Input label="Monto contrato" type="number" value={f.montoContrato} onChange={e => setF(x => ({ ...x, montoContrato: Number(e.target.value) }))} />
       </div>
-      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
-        <input type="checkbox" checked={f.renovacionAutomatica} onChange={e => setF(x => ({ ...x, renovacionAutomatica: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
-        Renovación automática
-      </label>
-      <div><label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas</label><textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" /></div>
+      <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
+        <p className="text-xs font-semibold text-slate-400 uppercase">Facturación</p>
+        <Input label="Nombre a facturar" value={f.nombreFacturar} onChange={e => setF(x => ({ ...x, nombreFacturar: e.target.value }))} placeholder="Razón social del cliente" />
+        <div className="flex flex-wrap gap-4">
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"><input type="checkbox" checked={f.facturaExtranjera} onChange={e => setF(x => ({ ...x, facturaExtranjera: e.target.checked }))} className="w-4 h-4 accent-blue-500" />Factura extranjera</label>
+          <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer"><input type="checkbox" checked={f.aplicaIVA} onChange={e => setF(x => ({ ...x, aplicaIVA: e.target.checked }))} className="w-4 h-4 accent-blue-500" />Aplica IVA</label>
+          {f.aplicaIVA && <Input label="% IVA" type="number" value={f.porcentajeIVA} onChange={e => setF(x => ({ ...x, porcentajeIVA: Number(e.target.value) }))} />}
+        </div>
+      </div>
     </div>
   );
 
-  const totalMRR = filtered.filter(c => c.estado === "Activo" && c.moneda === "USD").reduce((s, c) => s + (c.montoMensual || 0), 0);
+  const totalMRR = contratos.filter(c => c.estado === "Activo" && c.moneda === "USD").reduce((s, c) => s + (c.montoContrato || 0), 0);
 
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        <KPI title="Contratos activos" value={contratos.filter(c => c.estado === "Activo").length} color="blue" />
-        <KPI title="MRR USD" value={`$${totalMRR.toLocaleString()}`} color="green" />
-        <KPI title="Por vencer 60d" value={contratos.filter(c => { try { if (!c.fechaVencimiento) return false; const d = Math.ceil((new Date(c.fechaVencimiento) - new Date()) / 86400000); return d >= 0 && d <= 60; } catch(e){ return false; } }).length} color="amber" />
-        <KPI title="Vencidos" value={contratos.filter(c => { try { return c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date() && c.estado === "Activo"; } catch(e){ return false; } }).length} color="red" />
+        <KPI title="Activos" value={contratos.filter(c => c.estado === "Activo").length} color="blue" />
+        <KPI title="MRC USD" value={`$${totalMRR.toLocaleString()}`} color="green" />
+        <KPI title="Por renovar 60d" value={contratos.filter(c => { try { if (!c.fechaRenovacion) return false; const d = Math.ceil((new Date(c.fechaRenovacion) - new Date()) / 86400000); return d >= 0 && d <= 60; } catch { return false; } }).length} color="amber" />
+        <KPI title="Vencidos" value={contratos.filter(c => { try { return c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date() && c.estado === "Activo"; } catch { return false; } }).length} color="red" />
       </div>
+
       <div className="flex flex-wrap items-center gap-2">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar contrato o cliente..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
-        <div className="flex gap-1">{["Activo","Inactivo","Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}</div>
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar por N°, nombre o cliente..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-56" />
+        <div className="flex flex-wrap gap-1">{["Activo","Inactivo","En revisión","Vencido","Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}</div>
         <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo contrato</Btn>
       </div>
+
       <div className="overflow-x-auto rounded-xl border border-slate-700/50">
-        <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-slate-800/80"><tr>{["N° Contrato","Cliente","Tipo","Tribu","Monto mensual","Vigencia","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+        <table className="w-full text-sm min-w-[800px]">
+          <thead className="bg-slate-800/80"><tr>{["N° Contrato","Nombre","Cliente","Tipo","Tribu","Monto","Vencimiento","Renovación","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
           <tbody>
             {filtered.map(c => (
               <tr key={c.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${c.estado === "Inactivo" ? "opacity-50" : ""}`}>
-                <td className="px-3 py-3 text-blue-400 font-mono text-xs font-bold whitespace-nowrap">{c.numero}</td>
-                <td className="px-3 py-3 text-white font-medium">{clienteNombre(c.clienteId)}</td>
+                <td className="px-3 py-3"><button onClick={() => setDetailModal(c)} className="text-blue-400 font-mono text-xs hover:underline font-bold">{c.numero}</button></td>
+                <td className="px-3 py-3"><button onClick={() => setDetailModal(c)} className="text-white font-medium hover:text-blue-300 text-left max-w-[160px] truncate block">{c.nombre || "—"}</button></td>
+                <td className="px-3 py-3 text-slate-300 text-xs">{clienteNombre(c.clienteId)}</td>
                 <td className="px-3 py-3 whitespace-nowrap"><Badge color="blue">{c.tipo}</Badge></td>
                 <td className="px-3 py-3 whitespace-nowrap"><Pill label={c.tribu} color={c.tribu} /></td>
-                <td className="px-3 py-3 text-emerald-400 font-mono text-xs font-bold whitespace-nowrap">{c.moneda} {(c.montoMensual||0).toLocaleString()}</td>
-                <td className="px-3 py-3"><VigenciaTag fecha={c.fechaVencimiento} /></td>
-                <td className="px-3 py-3 whitespace-nowrap"><Badge color={c.estado === "Activo" ? "green" : "gray"}>{c.estado}</Badge></td>
-                <td className="px-3 py-3 whitespace-nowrap"><div className="flex gap-1"><Btn variant="ghost" size="sm" onClick={() => setDetail(c)}>Ver</Btn><Btn variant="ghost" size="sm" onClick={() => openEdit(c)}>✏️</Btn><Btn variant={c.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(c)}>{c.estado === "Activo" ? "Off" : "On"}</Btn></div></td>
+                <td className="px-3 py-3 text-emerald-400 font-mono text-xs font-bold whitespace-nowrap">{c.moneda} {(c.montoContrato||0).toLocaleString()}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><VigTag fecha={c.fechaVencimiento} /></td>
+                <td className="px-3 py-3 whitespace-nowrap"><VigTag fecha={c.fechaRenovacion} /></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color={c.estado === "Activo" ? "green" : c.estado === "Vencido" ? "red" : c.estado === "En revisión" ? "amber" : "gray"}>{c.estado}</Badge></td>
+                <td className="px-3 py-3 whitespace-nowrap"><div className="flex gap-1"><Btn variant="ghost" size="sm" onClick={() => openEdit(c)}>✏️</Btn><Btn variant="danger" size="sm" onClick={() => handleDelete(c)}>🗑</Btn></div></td>
               </tr>
             ))}
           </tbody>
         </table>
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron contratos</p>}
       </div>
-      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo contrato"><ContratoForm f={form} setF={setForm} /><div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div></Modal>
-      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.numero}`}><ContratoForm f={editForm} setF={setEditForm} /><div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div></Modal>
-      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Contrato ${detail?.numero}`}>
-        {detail && (<div className="space-y-2">{[["Cliente",clienteNombre(detail.clienteId)],["Tipo",detail.tipo],["Moneda",detail.moneda],["Monto mensual",`${detail.moneda} ${(detail.montoMensual||0).toLocaleString()}`],["Monto total",`${detail.moneda} ${(detail.montoTotal||0).toLocaleString()}`],["Tribu",detail.tribu],["PO",detail.po||"—"],["Inicio",detail.fechaInicio||"—"],["Vencimiento",detail.fechaVencimiento||"—"],["Renovación auto",detail.renovacionAutomatica?"Sí":"No"],["Estado",detail.estado]].map(([k,v]) => (<div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30"><span className="text-xs text-slate-500">{k}</span><span className="text-sm text-white">{v}</span></div>))}{detail.notas && <div className="bg-slate-800/40 rounded-lg p-3 mt-2"><p className="text-xs text-slate-400">{detail.notas}</p></div>}<div className="flex justify-between pt-3"><Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn><Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn></div></div>)}
+
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo contrato">
+        <ContratoForm f={form} setF={setForm} />
+        <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
+      </Modal>
+
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.numero}`}>
+        <ContratoForm f={editForm} setF={setEditForm} />
+        <div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div>
+      </Modal>
+
+      <Modal open={!!detailModal} onClose={() => setDetailModal(null)} title={`${detailModal?.numero} — ${detailModal?.nombre || ""}`}>
+        {detailModal && (
+          <div className="space-y-1.5 max-h-[65vh] overflow-y-auto">
+            {[
+              ["Cliente", clienteNombre(detailModal.clienteId)],
+              ["Tipo", detailModal.tipo],
+              ["Estado", detailModal.estado],
+              ["Tribu", detailModal.tribu],
+              ["Gerente de cuenta", detailModal.gerenteCuenta||"—"],
+              ["Fecha firma", detailModal.fechaFirma||"—"],
+              ["Fecha inicio", detailModal.fechaInicio||"—"],
+              ["Meses", detailModal.cantidadMeses],
+              ["Vencimiento", detailModal.fechaVencimiento||"—"],
+              ["Renovación", detailModal.fechaRenovacion||"—"],
+              ["Moneda", detailModal.moneda],
+              ["Monto", `${detailModal.moneda} ${(detailModal.montoContrato||0).toLocaleString()}`],
+              ["Forma de pago", detailModal.formaPago||"—"],
+              ["Nombre facturar", detailModal.nombreFacturar||"—"],
+              ["Factura extranjera", detailModal.facturaExtranjera?"Sí":"No"],
+              ["Aplica IVA", detailModal.aplicaIVA ? `Sí (${detailModal.porcentajeIVA}%)` : "No"],
+            ].map(([k,v]) => (
+              <div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30">
+                <span className="text-xs text-slate-500">{k}</span>
+                <span className="text-sm text-white">{v}</span>
+              </div>
+            ))}
+            {detailModal.urlContrato && <div className="py-2"><a href={detailModal.urlContrato} target="_blank" rel="noreferrer" className="text-blue-400 text-xs hover:underline">📎 Ver documento del contrato</a></div>}
+            {detailModal.descripcion && <div className="bg-slate-800/40 rounded-lg p-3 mt-1"><p className="text-xs text-slate-400">{detailModal.descripcion}</p></div>}
+            <div className="flex justify-end pt-3"><Btn size="sm" onClick={() => openEdit(detailModal)}>✏️ Editar</Btn></div>
+          </div>
+        )}
       </Modal>
     </div>
   );
@@ -1900,8 +1977,9 @@ function TabMaestros({ maestros, setMaestros }) {
     paises:        { label: "Países" },
     industrias:    { label: "Industrias" },
     tiposContrato: { label: "Tipos de contrato" },
+    formasPago:    { label: "Formas de pago" },
   };
-  const defaults = { paises: PAISES_DEFAULT, industrias: INDUSTRIAS_DEFAULT, tiposContrato: TIPOS_CONTRATO_DEFAULT };
+  const defaults = { paises: PAISES_DEFAULT, industrias: INDUSTRIAS_DEFAULT, tiposContrato: TIPOS_CONTRATO_DEFAULT, formasPago: ["Transferencia","Cheque","Tarjeta","SINPE","Otro"] };
   const current = maestros[tab]?.length ? maestros[tab] : defaults[tab];
 
   const save = async (updated) => {
@@ -1933,6 +2011,40 @@ function TabMaestros({ maestros, setMaestros }) {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ─── MÓDULO: CONFIGURACIÓN ───────────────────────────────────────────────────
+
+function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias }) {
+  const [tabInternal, setTabInternal] = useState("calendario");
+  const tab = forceTab || tabInternal;
+  const setTab = forceTab ? () => {} : setTabInternal;
+  const TABS = [
+    ["calendario",    "📅 Calendario"],
+    ["parametros",    "⚙️ Parámetros"],
+    ["disponibilidad","📊 Disponibilidad"],
+    ["maestros",      "📋 Maestros"],
+  ];
+  return (
+    <div className="space-y-5">
+      <div className="flex gap-1 border-b border-slate-700/50 overflow-x-auto pb-0">
+        {TABS.map(([id, label]) => (
+          <button key={id} onClick={() => setTab(id)}
+            className={`px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap rounded-t-lg transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700/50 border-b-slate-800" : "text-slate-400 hover:text-slate-300"}`}>
+            {label}
+          </button>
+        ))}
+      </div>
+      <ModuloParametros
+        calendar={calendar} setCalendar={setCalendar}
+        disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad}
+        colaboradores={colaboradores} ausencias={ausencias}
+        params={params} setParams={setParams}
+        maestros={maestros} setMaestros={setMaestros}
+        forceTab={tab}
+      />
     </div>
   );
 }
@@ -2983,20 +3095,21 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 // ─── APP ROOT ─────────────────────────────────────────────────────────────────
 
 const VIEWS = [
-  { id: "parametros",    label: "Parámetros",     icon: "⚙" },
-  { id: "colaboradores", label: "Colaboradores",  icon: "◉" },
-  { id: "clientes",      label: "Clientes",       icon: "◉", grupo: "CRM" },
-  { id: "contactos",     label: "Contactos",      icon: "◎", grupo: "CRM", sub: true },
-  { id: "contratos",     label: "Contratos",      icon: "◫", grupo: "CRM", sub: true },
-  { id: "servicios",     label: "Servicios",      icon: "⚙" },
-  { id: "dashboard",     label: "Dashboard",      icon: "⬡" },
-  { id: "utilizacion",   label: "Utilización",    icon: "◎" },
-  { id: "asignaciones",  label: "Asignaciones",   icon: "◧" },
-  { id: "forecast",      label: "Forecast",       icon: "↗" },
-  { id: "simulador",     label: "Simulador",      icon: "⚡" },
-  { id: "dunamis",       label: "Dunamis",        icon: "◈", tribu: true },
-  { id: "yarigai",       label: "Yarigai",        icon: "◈", tribu: true },
-  { id: "bulwak",        label: "Bulwak",         icon: "◈", tribu: true },
+  { id: "configuracion", label: "Configuración",  icon: "⚙", header: true },
+  { id: "colaboradores", label: "Colaboradores",  icon: "👥", header: true },
+  { id: "clientes",      label: "Clientes",       icon: "🏢", header: true },
+  { id: "contactos",     label: "Contactos",      icon: "◎", sub: true },
+  { id: "contratos",     label: "Contratos",      icon: "📄", sub: true },
+  { id: "consultoria",   label: "Consultoría",    icon: "◈", header: true },
+  { id: "dashboard",     label: "Dashboard",      icon: "⬡", sub: true },
+  { id: "servicios",     label: "Servicios",      icon: "◫", sub: true },
+  { id: "utilizacion",   label: "Utilización",    icon: "◎", sub: true },
+  { id: "asignaciones",  label: "Asignaciones",   icon: "◧", sub: true },
+  { id: "forecast",      label: "Forecast",       icon: "↗", sub: true },
+  { id: "simulador",     label: "Simulador",      icon: "⚡", sub: true },
+  { id: "dunamis",       label: "Dunamis",        icon: "◈", sub: true, tribu: true },
+  { id: "yarigai",       label: "Yarigai",        icon: "◈", sub: true, tribu: true },
+  { id: "bulwak",        label: "Bulwak",         icon: "◈", sub: true, tribu: true },
 ];
 
 // ─── MÓDULO: UTILIZACIÓN ─────────────────────────────────────────────────────
@@ -3473,7 +3586,7 @@ export default function App() {
   const [clientes, setClientes] = useState([]);
   const [contactos, setContactos] = useState([]);
   const [contratos, setContratos] = useState([]);
-  const [maestros, setMaestros] = useState({ paises: [], industrias: [], tiposContrato: [] });
+  const [maestros, setMaestros] = useState({ paises: [], industrias: [], tiposContrato: [], formasPago: [] });
 
   useEffect(() => {
     Promise.all([
@@ -3564,13 +3677,23 @@ export default function App() {
             </button>
           )}
 
-          {VIEWS.map(v => (
+          {VIEWS.map(v => v.header ? (
+            <div key={v.id} className="mt-3 first:mt-0">
+              <button
+                onClick={() => navigate(v.id)}
+                className={`w-full flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-semibold transition-all text-left ${view === v.id ? "bg-blue-600/20 text-blue-400 border border-blue-600/30" : "text-slate-300 hover:text-white hover:bg-slate-800/60"}`}
+              >
+                <span className="text-base">{v.icon}</span>
+                <span className="truncate">{v.label}</span>
+              </button>
+            </div>
+          ) : (
             <button
               key={v.id}
               onClick={() => navigate(v.id)}
-              className={`w-full flex items-center gap-2 px-3 rounded-lg font-medium transition-all text-left ${view === v.id ? "bg-blue-600/20 text-blue-400 border border-blue-600/30" : "text-slate-400 hover:text-white hover:bg-slate-800/60"} ${v.tribu ? "ml-2 text-xs py-1.5" : v.sub ? "ml-4 text-xs py-1.5" : "text-sm py-2"}`}
+              className={`w-full flex items-center gap-2 px-3 py-1.5 ml-3 rounded-lg text-xs font-medium transition-all text-left border-l-2 ${view === v.id ? "bg-blue-600/20 text-blue-400 border-blue-500" : "text-slate-500 hover:text-slate-200 hover:bg-slate-800/40 border-slate-800"}`}
             >
-              <span className="opacity-60 text-xs flex-shrink-0">{v.sub ? "└" : v.icon}</span>
+              <span className="opacity-50 flex-shrink-0">└</span>
               <span className="truncate">{v.label}</span>
             </button>
           ))}
@@ -3622,13 +3745,15 @@ export default function App() {
         {/* Page content */}
         <div className="xt-padding flex-1 p-6 lg:p-8">
          {view === "alertas"       && <ModuloAlertas alertas={alertas} onNavigate={navigate} />}
+          {view === "configuracion"  && <ModuloConfiguracion maestros={maestros} setMaestros={setMaestros} params={params} setParams={setParams} calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} />}
+          {view === "consultoria"    && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "utilizacion"   && <ModuloUtilizacion colaboradores={colaboradores} asignaciones={asignaciones} ausencias={ausencias} calendar={calendar} servicios={servicios} params={params} setParams={setParams} />}
           {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
-          {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
-          {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} maestros={maestros} setMaestros={setMaestros} />}
+          {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} maestros={maestros} />}
+          {/* parametros merged into configuracion */}
           {view === "clientes"      && <ModuloClientes clientes={clientes} setClientes={setClientes} contactos={contactos} setContactos={setContactos} maestros={maestros} />}
           {view === "contactos"     && <ModuloContactos contactos={contactos} setContactos={setContactos} clientes={clientes} />}
           {view === "contratos"     && <ModuloContratos contratos={contratos} setContratos={setContratos} clientes={clientes} colaboradores={colaboradores} maestros={maestros} />}
