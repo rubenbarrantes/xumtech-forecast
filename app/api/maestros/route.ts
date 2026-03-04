@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
-import sql from "@/lib/db";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL!);
 
 async function ensure() {
   await sql`CREATE TABLE IF NOT EXISTS maestros (
