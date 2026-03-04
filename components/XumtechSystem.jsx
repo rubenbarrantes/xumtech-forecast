@@ -712,7 +712,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
                 <tr>{["Mes", "Feriados", "Días laborales netos", "Dif. vs 20 días", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
               </thead>
               <tbody>
-                {calendar.map(c => (
+                {calDesc.map(c => (
                   <tr key={c.mes} className="border-t border-slate-700/30 hover:bg-slate-800/20">
                     <td className="px-4 py-2.5 text-white font-medium">
                       {c.label}
