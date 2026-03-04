@@ -1131,7 +1131,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
 // ─── MÓDULO: GESTIÓN DE TRIBU ─────────────────────────────────────────────────
 
-function BarUtil({ pct, color }) {
+function BarUtilSimple({ pct, color }) {
   const bg = color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-red-500";
   return (
     <div className="w-full bg-slate-700/50 rounded-full h-2 mt-1">
@@ -1206,7 +1206,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
                         <span className="text-xs text-slate-500 ml-2">{r.asignado}h / {r.disponible}h</span>
                       </div>
                     </div>
-                    <BarUtil pct={r.pct} color={color} />
+                    <BarUtilSimple pct={r.pct} color={color} />
                   </div>
                 );
               })
@@ -1322,7 +1322,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
                         <span className="text-xs text-slate-500 ml-1">{p.asignado}h</span>
                       </div>
                     </div>
-                    <BarUtil pct={p.pct} color={color} />
+                    <BarUtilSimple pct={p.pct} color={color} />
                     {asigPersona.length > 0 && (
                       <div className="mt-3 space-y-1">
                         {asigPersona.map((a, i) => {
