@@ -29,6 +29,12 @@ const CALENDAR_SEED = [
   { mes: "2026-04", label: "Abr 2026", diasLaborales: 19, feriados: 3, dif20: 2 },
   { mes: "2026-05", label: "May 2026", diasLaborales: 20, feriados: 1, dif20: 1 },
   { mes: "2026-06", label: "Jun 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
+  { mes: "2026-07", label: "Jul 2026", diasLaborales: 23, feriados: 1, dif20: 3 },
+  { mes: "2026-08", label: "Ago 2026", diasLaborales: 19, feriados: 2, dif20: 1 },
+  { mes: "2026-09", label: "Sep 2026", diasLaborales: 21, feriados: 1, dif20: 2 },
+  { mes: "2026-10", label: "Oct 2026", diasLaborales: 22, feriados: 0, dif20: 2 },
+  { mes: "2026-11", label: "Nov 2026", diasLaborales: 19, feriados: 2, dif20: 1 },
+  { mes: "2026-12", label: "Dic 2026", diasLaborales: 21, feriados: 2, dif20: 3 },
 ];
 
 const COLABORADORES_SEED = [ 
@@ -318,14 +324,14 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-4 gap-3">
         {["Todas", ...TRIBUS_DEFAULT].map(t => {
           const count = colaboradores.filter(c => (t === "Todas" ? true : c.tribu === t) && c.status === "Activo").length;
           return <KPI key={t} title={t === "Todas" ? "Total activos" : t} value={count} color={t === "Todas" ? "blue" : "green"} />;
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar colaborador..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
         <div className="flex gap-1">
           {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
@@ -336,7 +342,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
         <Btn variant="primary" size="sm" onClick={() => setModalOpen(true)} className="ml-auto">+ Agregar colaborador</Btn>
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="rounded-xl border border-slate-700/50 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/80">
             <tr>{["Colaborador", "Tribu", "Rol Principal", "Horas/día", "Estado", "Días ausentes", "Acciones"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -380,11 +386,11 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
         <div className="space-y-4">
           <Input label="Nombre completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nombre Apellido" />
           <Input label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@xumtech.com" />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Select label="Rol principal" value={form.rolPrincipal} onChange={e => setForm(f => ({ ...f, rolPrincipal: e.target.value }))} options={ROLES_DEFAULT} />
             <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
           </div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={["Activo", "Inactivo"]} />
             <Input label="Horas por día" type="number" value={form.horasDia} onChange={e => setForm(f => ({ ...f, horasDia: e.target.value }))} />
           </div>
@@ -412,7 +418,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
               </div>
             </div>
 
-            <div className="overflow-x-auto rounded-xl border border-slate-700/40 overflow-hidden">
+            <div className="rounded-xl border border-slate-700/40 overflow-hidden">
               <div className="px-4 py-2.5 bg-slate-800/60 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Días ausentes registrados</span>
                 <div className="flex items-center gap-3">
@@ -459,7 +465,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
             options={calDesc.map(c => ({ value: c.mes, label: `${c.label} (${c.diasLaborales}d lab.)` }))}
           />
           <Input label="Fecha específica (opcional)" type="date" value={ausenciaForm.fecha} onChange={e => setAusenciaForm(f => ({ ...f, fecha: e.target.value }))} />
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Input label="Días a descontar" type="number" min="1" value={ausenciaForm.dias} onChange={e => setAusenciaForm(f => ({ ...f, dias: e.target.value }))} />
             <Select label="Tipo" value={ausenciaForm.tipo} onChange={e => setAusenciaForm(f => ({ ...f, tipo: e.target.value }))} options={["Vacaciones", "Incapacidad", "Día libre", "Permiso", "Otro"]} />
           </div>
@@ -588,7 +594,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
         <div className="space-y-6">
           <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Utilización</p>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Objetivo de utilización (%)</label>
                 <input type="number" min="50" max="120" value={params.utilObjetivo}
@@ -707,7 +713,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             <p className="text-xs text-slate-500">Configura los días laborales reales por mes. Los cambios se guardan automáticamente.</p>
             <Btn size="sm" onClick={() => setCalModal(true)}>+ Agregar mes</Btn>
           </div>
-          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Mes", "Feriados", "Días laborales netos", "Dif. vs 20 días", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -745,11 +751,11 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
           <Modal open={calModal} onClose={() => setCalModal(false)} title="Agregar mes al calendario">
             <div className="space-y-4">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Input label="Mes (YYYY-MM)" value={calForm.mes} onChange={e => setCalForm(f => ({ ...f, mes: e.target.value }))} placeholder="2026-07" />
                 <Input label="Etiqueta" value={calForm.label} onChange={e => setCalForm(f => ({ ...f, label: e.target.value }))} placeholder="Jul 2026" />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Input label="Días laborales" type="number" min="1" max="23" value={calForm.diasLaborales} onChange={e => setCalForm(f => ({ ...f, diasLaborales: e.target.value }))} />
                 <Input label="Feriados" type="number" min="0" max="10" value={calForm.feriados} onChange={e => setCalForm(f => ({ ...f, feriados: e.target.value }))} />
               </div>
@@ -786,7 +792,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             });
           })}
 
-          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Colaborador", "Rol", "Tribu", "Mes", "% Asignado", "Total persona-mes", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -820,11 +826,11 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
           <Modal open={dispModal} onClose={() => setDispModal(false)} title="Nueva asignación de disponibilidad">
             <div className="space-y-4">
               <Select label="Colaborador" value={dispForm.colaborador} onChange={e => setDispForm(f => ({ ...f, colaborador: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...activos.map(n => ({ value: n, label: n }))]} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Select label="Rol" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
                 <Select label="Tribu" value={dispForm.tribu} onChange={e => setDispForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Select label="Mes" value={dispForm.mes} onChange={e => setDispForm(f => ({ ...f, mes: e.target.value }))} options={calendar.map(c => ({ value: c.mes, label: c.label }))} />
                 <Input label="% Asignado" type="number" min="1" max="100" value={dispForm.porcentaje} onChange={e => setDispForm(f => ({ ...f, porcentaje: e.target.value }))} />
               </div>
@@ -847,7 +853,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
       {tab === "neto" && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">Calculado automáticamente: % Bruto × (Días reales persona / Días calendario mes). Solo lectura.</p>
-          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Colaborador", "Rol", "Tribu", "Mes", "% Bruto", "Días cal.", "Días reales", "% Neto"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -978,7 +984,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   };
 
   const handleDelete = async (s) => {
-    if (!confirm(`¿Eliminar "${s.nombre}"? Se eliminarán también todas sus asignaciones.`)) return;
+    if (!confirm(`¿Eliminar "${s.nombre}"?`)) return;
     await fetch("/api/servicios", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id }) });
     setServicios(p => p.filter(x => x.id !== s.id));
     setDetail(null);
@@ -1042,19 +1048,19 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         {TRIBUS_DEFAULT.map(t => <KPI key={t} title={t} value={servicios.filter(s => s.tribu === t && s.estado === "Activo").length} color="green" />)}
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar servicio o contrato..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-56" />
-        <div className="flex gap-1">
-          {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-44" />
+        <div className="flex flex-wrap gap-1">
+          {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
         </div>
         <div className="flex gap-1">
-          {["Activo", "Inactivo", "Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}
+          {["Activo", "Inactivo", "Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}
         </div>
-        <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo servicio</Btn>
+        <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo</Btn>
       </div>
-      <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table className="w-full text-sm min-w-[700px]">
           <thead className="bg-slate-800/80">
-            <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Tecnología", "Límite", "Vigencia", "Estado", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+            <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Tecnología", "Límite", "Vigencia", "Estado", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.map(s => {
@@ -1062,23 +1068,22 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
               const venc = s.fechaVencimiento ? new Date(s.fechaVencimiento) : null;
               const dias = venc ? Math.ceil((venc - hoy) / 86400000) : null;
               const vigColor = dias === null ? "text-slate-500" : dias < 0 ? "text-red-400" : dias <= 60 ? "text-amber-400" : "text-emerald-400";
-              const vigLabel = dias === null ? "Sin fecha" : dias < 0 ? `Venció hace ${Math.abs(dias)}d` : dias <= 30 ? `${dias}d ⚠` : s.fechaVencimiento;
+              const vigLabel = dias === null ? "Sin fecha" : dias < 0 ? `Venció ${Math.abs(dias)}d` : dias <= 30 ? `${dias}d ⚠` : s.fechaVencimiento;
               return (
                 <tr key={s.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${s.estado === "Inactivo" ? "opacity-50" : ""}`}>
-                  <td className="px-3 py-3 text-blue-400 font-mono text-xs">{s.contratoId || "—"}</td>
+                  <td className="px-3 py-3 text-blue-400 font-mono text-xs whitespace-nowrap">{s.contratoId || "—"}</td>
                   <td className="px-3 py-3 text-white font-medium">{s.nombre}</td>
-                  <td className="px-3 py-3"><Badge color={s.tipo.includes("Crítico") ? "red" : s.tipo.includes("Dedicado") ? "purple" : s.tipo.includes("Proyecto") ? "amber" : "blue"}>{s.tipo}</Badge></td>
-                  <td className="px-3 py-3"><Pill label={s.tribu} color={s.tribu} /></td>
-                  <td className="px-3 py-3 text-slate-300 text-xs">{s.po || "—"}</td>
-                  <td className="px-3 py-3 text-slate-400 text-xs">{s.tecnologia || "—"}</td>
-                  <td className="px-3 py-3 text-slate-300 font-mono text-xs">{s.tipo === "Talento Dedicado" ? `${s.personasDedicadas}p` : `${s.horasLimite}h`}</td>
-                  <td className="px-3 py-3"><div className="flex flex-col gap-0.5"><span className={`font-mono text-xs font-semibold ${vigColor}`}>{vigLabel}</span>{s.renovable && <span className="text-xs text-slate-500">renovable</span>}</div></td>
-                  <td className="px-3 py-3"><Badge color={s.estado === "Activo" ? "green" : "gray"}>{s.estado}</Badge></td>
-                  <td className="px-3 py-3">
+                  <td className="px-3 py-3 whitespace-nowrap"><Badge color={s.tipo.includes("Crítico") ? "red" : s.tipo.includes("Dedicado") ? "purple" : s.tipo.includes("Proyecto") ? "amber" : "blue"}>{s.tipo}</Badge></td>
+                  <td className="px-3 py-3 whitespace-nowrap"><Pill label={s.tribu} color={s.tribu} /></td>
+                  <td className="px-3 py-3 text-slate-300 text-xs whitespace-nowrap">{s.po || "—"}</td>
+                  <td className="px-3 py-3 text-slate-400 text-xs whitespace-nowrap">{s.tecnologia || "—"}</td>
+                  <td className="px-3 py-3 text-slate-300 font-mono text-xs whitespace-nowrap">{s.tipo === "Talento Dedicado" ? `${s.personasDedicadas}p` : `${s.horasLimite}h`}</td>
+                  <td className="px-3 py-3 whitespace-nowrap"><span className={`font-mono text-xs font-semibold ${vigColor}`}>{vigLabel}</span>{s.renovable && <span className="text-xs text-slate-500 block">renovable</span>}</td>
+                  <td className="px-3 py-3 whitespace-nowrap"><Badge color={s.estado === "Activo" ? "green" : "gray"}>{s.estado}</Badge></td>
+                  <td className="px-3 py-3 whitespace-nowrap">
                     <div className="flex items-center gap-1">
-                      <Btn variant="ghost" size="sm" onClick={() => setDetail(s)}>Ver</Btn>
                       <Btn variant="ghost" size="sm" onClick={() => openEdit(s)}>✏️</Btn>
-                      <Btn variant={s.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(s)}>{s.estado === "Activo" ? "Desactivar" : "Activar"}</Btn>
+                      <Btn variant={s.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(s)}>{s.estado === "Activo" ? "Off" : "On"}</Btn>
                       <Btn variant="danger" size="sm" onClick={() => handleDelete(s)}>🗑</Btn>
                     </div>
                   </td>
@@ -1102,7 +1107,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
       </Modal>
       <Modal open={!!rolesModal} onClose={() => setRolesModal(null)} title={`Roles — ${servicios.find(s => s.id === rolesModal)?.nombre}`}>
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             {ROLES_DEFAULT.map(rol => (
               <label key={rol} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${rolesForm[rol] ? "border-blue-500/50 bg-blue-500/10" : "border-slate-700/50 bg-slate-800/30"}`}>
                 <input type="checkbox" checked={!!rolesForm[rol]} onChange={e => setRolesForm(f => ({ ...f, [rol]: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
@@ -1116,12 +1121,12 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
       <Modal open={!!detail} onClose={() => setDetail(null)} title="Detalle del servicio">
         {detail && (
           <div className="space-y-3">
-            {[["Nombre",detail.nombre],["Tipo",detail.tipo],["Tribu",detail.tribu],["PO",detail.po||"—"],["Contrato",detail.contratoId||"—"],["Jira",detail.jiraId||"—"],["Tecnología",detail.tecnologia||"—"],["Límite",detail.tipo==="Talento Dedicado"?`${detail.personasDedicadas}p`:`${detail.horasLimite}h`],["Inicio",detail.fechaInicio||"—"],["Vencimiento",detail.fechaVencimiento||"—"],["Estado",detail.estado],["Renovable",detail.renovable?"Sí":"No"]].map(([k,v]) => (
+            {[["Nombre",detail.nombre],["Tipo",detail.tipo],["Tribu",detail.tribu],["PO",detail.po||"—"],["Contrato",detail.contratoId||"—"],["Tecnología",detail.tecnologia||"—"],["Límite",detail.tipo==="Talento Dedicado"?`${detail.personasDedicadas}p`:`${detail.horasLimite}h`],["Vencimiento",detail.fechaVencimiento||"—"],["Estado",detail.estado]].map(([k,v]) => (
               <div key={k} className="flex justify-between py-2 border-b border-slate-700/30"><span className="text-xs text-slate-500 uppercase">{k}</span><span className="text-sm text-white font-medium">{v}</span></div>
             ))}
-            <div className="flex justify-between pt-3">
+            <div className="flex justify-end gap-2 pt-3">
               <Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn>
-              <div className="flex gap-2"><Btn variant="ghost" size="sm" onClick={() => openRolesModal(detail)}>Roles</Btn><Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn></div>
+              <Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn>
             </div>
           </div>
         )}
@@ -1148,7 +1153,6 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
   const [tab, setTab] = useState("utilizacion");
 
   const motor = useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, servicios, params });
-  const tribServicios = servicios.filter(s => s.tribu === tribu && s.estado === "Activo");
   const tribColabs = colaboradores.filter(c => c.tribu === tribu && c.status === "Activo");
   const tribAsigs = (asignaciones || []).filter(a => a.tribu === tribu && a.mes === mesSel);
   const rolesData = ROLES_DEFAULT.map(rol => motor.utilizacionRolTribu(tribu, rol, mesSel)).filter(r => r && r.personas > 0);
@@ -1168,39 +1172,36 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
 
   return (
     <div className="space-y-5">
-      {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
           <h2 className="text-xl font-bold text-white">{tribu}</h2>
           <p className={`text-2xl font-bold ${semaforo}`}>{pctGlobal}% <span className="text-sm font-normal text-slate-400">utilización {mesSel}</span></p>
         </div>
-        <div className="flex gap-2 overflow-x-auto pb-1 xt-month-bar">
-          {calendar.map(c => (
-            <button key={c.mes} onClick={() => setMesSel(c.mes)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mesSel === c.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"}`}>{c.label}</button>
+        <div className="flex gap-1.5 overflow-x-auto pb-1">
+          {calendar.map(cal => (
+            <button key={cal.mes} onClick={() => setMesSel(cal.mes)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-colors ${mesSel === cal.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"}`}>{cal.label}</button>
           ))}
         </div>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-700/50 pb-0 overflow-x-auto">
+      <div className="flex gap-1 border-b border-slate-700/50 overflow-x-auto">
         {tabs.map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${tab === t.id ? "bg-slate-800 text-white border border-slate-700/50 border-b-slate-800" : "text-slate-400 hover:text-slate-300"}`}>{t.label}</button>
+          <button key={t.id} onClick={() => setTab(t.id)} className={`px-3 py-2.5 text-xs sm:text-sm font-medium rounded-t-lg whitespace-nowrap transition-colors ${tab === t.id ? "bg-slate-800 text-white border border-slate-700/50" : "text-slate-400 hover:text-slate-300"}`}>{t.label}</button>
         ))}
       </div>
 
-      {/* Tab: Utilización por rol */}
       {tab === "utilizacion" && (
         <div className="space-y-3">
           {rolesData.length === 0
-            ? <p className="text-slate-500 text-sm text-center py-8">No hay datos de utilización para este mes. Configura asignaciones primero.</p>
+            ? <p className="text-slate-500 text-sm text-center py-8">No hay datos de utilización para este mes.</p>
             : rolesData.map(r => {
                 const color = r.pct >= (params?.utilObjetivo || 75) ? "green" : r.pct >= 50 ? "amber" : "red";
                 return (
                   <div key={r.rol} className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/30">
                     <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-3">
+                      <div className="flex items-center gap-2">
                         <Pill label={r.rol} color={r.rol} />
-                        <span className="text-xs text-slate-400">{r.personas} persona{r.personas !== 1 ? "s" : ""}</span>
+                        <span className="text-xs text-slate-400">{r.personas}p</span>
                       </div>
                       <div className="text-right">
                         <span className={`text-lg font-bold ${color === "green" ? "text-emerald-400" : color === "amber" ? "text-amber-400" : "text-red-400"}`}>{r.pct}%</span>
@@ -1224,29 +1225,29 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
         </div>
       )}
 
-      {/* Tab: Asignaciones activas */}
       {tab === "asignaciones" && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <KPI title="Asignaciones" value={tribAsigs.length} color="blue" />
             <KPI title="Horas totales" value={`${tribAsigs.reduce((s, a) => s + (a.horas || 0), 0)}h`} color="green" />
-            <KPI title="Servicios cubiertos" value={new Set(tribAsigs.map(a => a.servicioId || a.servicio_id)).size} color="purple" />
+            <KPI title="Servicios" value={new Set(tribAsigs.map(a => a.servicioId || a.servicio_id)).size} color="blue" />
           </div>
           {tribAsigs.length === 0
             ? <p className="text-slate-500 text-sm text-center py-8">No hay asignaciones registradas para {tribu} en {mesSel}.</p>
             : (
-              <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-slate-800/80"><tr>{["Rol","Colaborador","Servicio","Horas"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr></thead>
+              <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+                <table className="w-full text-sm min-w-[400px]">
+                  <thead className="bg-slate-800/80"><tr>{["Rol","Colaborador","Servicio","Horas"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
                   <tbody>
                     {tribAsigs.map((a, i) => {
-                      const srv = servicios.find(s => s.id === a.servicioId || s.id === a.servicio_id);
+                      const srv = servicios.find(s => s.id === (a.servicioId || a.servicio_id));
+                      const rol = a.rol || "—";
                       return (
                         <tr key={i} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                          <td className="px-3 py-2.5">{a.rol ? <Pill label={a.rol} color={a.rol} /> : <span className="text-slate-500 text-xs">—</span>}</td>
+                          <td className="px-3 py-2.5 whitespace-nowrap">{rol !== "—" ? <Pill label={rol} color={rol} /> : <span className="text-slate-500 text-xs">—</span>}</td>
                           <td className="px-3 py-2.5 text-slate-300 text-xs">{a.colaborador || <span className="text-slate-600">Por rol</span>}</td>
                           <td className="px-3 py-2.5 text-white text-xs">{srv?.nombre || `Servicio #${a.servicioId || a.servicio_id}`}</td>
-                          <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{a.horas}h</td>
+                          <td className="px-3 py-2.5 text-slate-300 font-mono text-xs whitespace-nowrap">{a.horas}h</td>
                         </tr>
                       );
                     })}
@@ -1258,7 +1259,6 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
         </div>
       )}
 
-      {/* Tab: Capacidad vs Asignado */}
       {tab === "capacidad" && (
         <div className="space-y-4">
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -1267,16 +1267,16 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
             <KPI title="Libre" value={`${totalDisp - totalAsig}h`} color={totalDisp - totalAsig < 0 ? "red" : "green"} />
           </div>
           {rolesData.length > 0 && (
-            <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
-              <table className="w-full text-sm">
-                <thead className="bg-slate-800/80"><tr>{["Rol","Personas","Disponible","Asignado","Libre","Utilización"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr></thead>
+            <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+              <table className="w-full text-sm min-w-[500px]">
+                <thead className="bg-slate-800/80"><tr>{["Rol","Personas","Disponible","Asignado","Libre","Util."].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
                 <tbody>
                   {rolesData.map(r => {
                     const libre = r.disponible - r.asignado;
                     const color = r.pct >= (params?.utilObjetivo || 75) ? "text-emerald-400" : r.pct >= 50 ? "text-amber-400" : "text-red-400";
                     return (
                       <tr key={r.rol} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                        <td className="px-3 py-2.5"><Pill label={r.rol} color={r.rol} /></td>
+                        <td className="px-3 py-2.5 whitespace-nowrap"><Pill label={r.rol} color={r.rol} /></td>
                         <td className="px-3 py-2.5 text-slate-400 text-xs">{r.personas}</td>
                         <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{r.disponible}h</td>
                         <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{r.asignado}h</td>
@@ -1300,7 +1300,6 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
         </div>
       )}
 
-      {/* Tab: Por colaborador */}
       {tab === "personas" && (
         <div className="space-y-3">
           {porPersona.length === 0
@@ -1312,13 +1311,13 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
                   <div key={p.colab.name} className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/30">
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-3">
-                        <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-xs font-bold text-blue-300">{p.colab.name.charAt(0)}</div>
+                        <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-xs font-bold text-blue-300 flex-shrink-0">{p.colab.name.charAt(0)}</div>
                         <div>
                           <p className="text-sm font-medium text-white">{p.colab.name}</p>
-                          <p className="text-xs text-slate-500">{p.colab.rolPrincipal} · {p.disponible}h disp. · {p.ausencias}d ausencia</p>
+                          <p className="text-xs text-slate-500">{p.colab.rolPrincipal} · {p.disponible}h disp.</p>
                         </div>
                       </div>
-                      <div className="text-right">
+                      <div className="text-right flex-shrink-0">
                         <span className={`text-lg font-bold ${color === "green" ? "text-emerald-400" : color === "amber" ? "text-amber-400" : "text-red-400"}`}>{p.pct}%</span>
                         <span className="text-xs text-slate-500 ml-1">{p.asignado}h</span>
                       </div>
@@ -1327,8 +1326,8 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
                     {asigPersona.length > 0 && (
                       <div className="mt-3 space-y-1">
                         {asigPersona.map((a, i) => {
-                          const srv = servicios.find(s => s.id === a.servicioId || s.id === a.servicio_id);
-                          return <div key={i} className="flex justify-between text-xs text-slate-400 pl-2 border-l border-slate-700"><span>{srv?.nombre || "Servicio"}</span><span className="font-mono">{a.horas}h</span></div>;
+                          const srv = servicios.find(s => s.id === (a.servicioId || a.servicio_id));
+                          return <div key={i} className="flex justify-between text-xs text-slate-400 pl-2 border-l border-slate-700"><span className="truncate mr-2">{srv?.nombre || "Servicio"}</span><span className="font-mono whitespace-nowrap">{a.horas}h</span></div>;
                         })}
                       </div>
                     )}
@@ -1406,7 +1405,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
                 <span className="w-2 h-2 rounded-full" style={{ background: TRIBU_COLORS[t] }}></span>
                 <span className="font-semibold text-white">{t}</span>
               </div>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <div><p className="text-2xl font-bold font-mono" style={{ color: TRIBU_COLORS[t] }}>{cnt}</p><p className="text-xs text-slate-500">colaboradores</p></div>
                 <div><p className="text-2xl font-bold font-mono text-slate-300">{srv}</p><p className="text-xs text-slate-500">servicios</p></div>
               </div>
@@ -1584,7 +1583,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1 flex-wrap">
           {mesesDisponibles.map(c => (
             <button key={c.mes} onClick={() => setMesFilter(c.mes)}
@@ -1653,7 +1652,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       {/* Modal nueva asignación */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nueva asignación de horas">
         <div className="space-y-4">
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value, colaborador: "" }))} options={TRIBUS_DEFAULT} />
             <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
           </div>
@@ -1668,7 +1667,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
             />
           )}
 
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <div className="grid grid-cols-2 gap-3">
             <Select label="Mes" value={form.mes} onChange={e => setForm(f => ({ ...f, mes: e.target.value }))}
               options={mesesDisponibles.map(c => ({ value: c.mes, label: c.label }))} />
             <Input label="Horas" type="number" min="1" value={form.horas} onChange={e => setForm(f => ({ ...f, horas: +e.target.value }))} />
@@ -1854,7 +1853,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
   return (
     <div className="space-y-6">
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-2">
+      <div className="flex flex-wrap items-center gap-3">
         <div className="flex gap-1">
           {["Todas", ...TRIBUS_DEFAULT].map(t => (
             <button key={t} onClick={() => setTribFocus(t)}
@@ -2002,7 +2001,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
       {porVencer.length > 0 && (
         <div>
           <SectionHeader>Contratos que vencen en el horizonte seleccionado</SectionHeader>
-          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Contrato", "Servicio", "Tribu", "Vencimiento", "¿Renovable?", "Impacto (personas)"].map(h => (
@@ -2206,7 +2205,7 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 
             <div className="space-y-3">
               <Input label="Nombre del proyecto" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="grid grid-cols-2 gap-3">
                 <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
                 <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
               </div>
@@ -2333,7 +2332,7 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
           </div>
 
           {/* Tabla de impacto mes a mes */}
-          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>
@@ -2671,7 +2670,7 @@ function ModuloAlertas({ alertas, onNavigate }) {
           <SectionHeader>
             <span className="text-blue-400">◫ Contratos vencen en menos de 60 días</span>
           </SectionHeader>
-          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>
@@ -2763,29 +2762,12 @@ const GLOBAL_CSS = `
     .xt-form-2col { grid-template-columns: 1fr !important; }
     .xt-padding { padding: 16px !important; }
     .xt-header-padding { padding: 12px 16px !important; }
-    /* Tables scroll horizontally */
-    table { min-width: 500px; }
-    .xt-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
-    /* Stat grids collapse */
-    .xt-stat-grid { grid-template-columns: 1fr 1fr !important; }
-    /* Hide less important table columns on mobile */
-    .xt-col-hide { display: none !important; }
-    /* Month pill bars scroll */
-    .xt-month-bar { overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 4px; }
-    /* Full width buttons */
-    .xt-btn-mobile-full { width: 100%; justify-content: center; }
-    /* Font size reduction */
     .xt-main { font-size: 13px; }
   }
   @media (max-width: 768px) {
     .xt-forecast-controls { flex-direction: column; align-items: flex-start !important; }
-    /* Modals full width */
-    .xt-modal-inner { max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; min-height: 100vh; }
-    /* Header compact */
-    .xt-header { padding: 10px 16px !important; }
-    /* Action bars wrap */
+    .xt-modal-inner { max-width: 100% !important; margin: 0 8px !important; }
     .xt-action-bar { flex-wrap: wrap; gap: 8px !important; }
-    .xt-action-bar > * { flex-shrink: 0; }
   }
 `;
 
