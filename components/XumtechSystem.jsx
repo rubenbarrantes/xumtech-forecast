@@ -504,11 +504,11 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
   );
 }
 
-function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros, forceTab }) {
+function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros, activeTab }) {
 
   const [tabInternal, setTabInternal] = useState("calendario");
-  const tab = forceTab || tabInternal;
-  const setTab = forceTab ? () => {} : setTabInternal;
+  const tab = activeTab || tabInternal;
+  const setTab = (v) => setTabInternal(v);
   const [dispForm, setDispForm] = useState({ colaborador: "", rol: "Técnico", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 });
   const [dispModal, setDispModal] = useState(false);
   const [calModal, setCalModal] = useState(false);
@@ -2018,9 +2018,7 @@ function TabMaestros({ maestros, setMaestros }) {
 // ─── MÓDULO: CONFIGURACIÓN ───────────────────────────────────────────────────
 
 function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias }) {
-  const [tabInternal, setTabInternal] = useState("calendario");
-  const tab = forceTab || tabInternal;
-  const setTab = forceTab ? () => {} : setTabInternal;
+  const [tab, setTab] = useState("calendario");
   const TABS = [
     ["calendario",    "📅 Calendario"],
     ["parametros",    "⚙️ Parámetros"],
@@ -2029,10 +2027,10 @@ function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calenda
   ];
   return (
     <div className="space-y-5">
-      <div className="flex gap-1 border-b border-slate-700/50 overflow-x-auto pb-0">
+      <div className="flex gap-1 border-b border-slate-700/50 overflow-x-auto">
         {TABS.map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)}
-            className={`px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap rounded-t-lg transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700/50 border-b-slate-800" : "text-slate-400 hover:text-slate-300"}`}>
+            className={`px-4 py-2.5 text-xs sm:text-sm font-medium whitespace-nowrap rounded-t-lg transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700/50" : "text-slate-400 hover:text-slate-300"}`}>
             {label}
           </button>
         ))}
@@ -2043,7 +2041,7 @@ function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calenda
         colaboradores={colaboradores} ausencias={ausencias}
         params={params} setParams={setParams}
         maestros={maestros} setMaestros={setMaestros}
-        forceTab={tab}
+        activeTab={tab}
       />
     </div>
   );
