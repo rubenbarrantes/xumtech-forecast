@@ -5,7 +5,8 @@ import { BarChart, Bar, LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, R
 // ─── SEED DATA ────────────────────────────────────────────────────────────────
 
 const TRIBUS_DEFAULT = ["Dunamis", "Yarigai", "Bulwak"];
-const ROLES_DEFAULT = ["Técnico", "Funcional", "PO", "GA", "Arquitecto", "Proveedores", "Gerencia"];
+const ROLES_DEFAULT = ["Técnico", "Funcional", "PO", "GA", "Arquitecto", "Proveedor", "Gerencia"];
+const PUESTOS_DEFAULT = ["Consultor Junior", "Consultor Senior", "Consultor Lead", "Arquitecto de Soluciones", "Project Manager", "Product Owner", "Gerente de Cuenta", "Director", "CEO", "Otro"];
 const TIPOS_SERVICIO = ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Proyecto", "Talento Dedicado", "Bolsa de Horas"];
 const HORAS_DIA = 8;
 const HORAS_NO_COBRABLE = 11;
@@ -191,7 +192,7 @@ function useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, serv
 
     // Capacidad total de un rol en una tribu en un mes
     const capacidadRolTribu = (tribu, rol, mes) => {
-      const personas = activos.filter(c => c.tribu === tribu && c.rolPrincipal === rol);
+      const personas = activos.filter(c => c.tribu === tribu && (c.rolOperativo || c.rolPrincipal) === rol);
       return personas.reduce((s, c) => {
         const cap = capacidadPersona(c, mes);
         return s + cap.disponible;
@@ -223,7 +224,7 @@ function useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, serv
       const disponible = capacidadRolTribu(tribu, rol, mes);
       const asignado = horasAsignadasRolTribu(tribu, rol, mes);
       const pct = disponible > 0 ? Math.round((asignado / disponible) * 100) : 0;
-      const personas = activos.filter(c => c.tribu === tribu && c.rolPrincipal === rol).length;
+      const personas = activos.filter(c => c.tribu === tribu && (c.rolOperativo || c.rolPrincipal) === rol).length;
       return { disponible, asignado, pct, personas };
     };
 
@@ -275,7 +276,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
   const [editModal, setEditModal] = useState(null);
   const [ausenciaModal, setAusenciaModal] = useState(null);
   const [ausenciaForm, setAusenciaForm] = useState({ fecha: "", motivo: "Vacaciones", descripcion: "", dias: 1 });
-  const [form, setForm] = useState({ codigoInterno: "", nombre: "", apellidos: "", tipoId: "Cédula de identidad", cedula: "", correo: "", telefono: "", fechaIngreso: "", fechaNacimiento: "", tribu: "Dunamis", rolPrincipal: "Técnico", diasLibresAnio: 15, horasDia: 8, status: "Activo" });
+  const [form, setForm] = useState({ codigoInterno: "", nombre: "", apellidos: "", tipoId: "Cédula de identidad", cedula: "", correo: "", telefono: "", fechaIngreso: "", fechaNacimiento: "", tribu: "Dunamis", puesto: "", rolOperativo: "Técnico", diasLibresAnio: 15, horasDia: 8, status: "Activo" });
   const [editForm, setEditForm] = useState({});
   const [formErrors, setFormErrors] = useState({});
 
@@ -301,13 +302,13 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
   const handleAdd = async () => {
     const errs = validateForm(form);
     if (Object.keys(errs).length) { setFormErrors(errs); return; }
-    const body = { ...form, codigoInterno: form.codigoInterno || genCodigo(), name: `${form.nombre} ${form.apellidos}`.trim(), horasDia: Number(form.horasDia), diasLibresAnio: Number(form.diasLibresAnio) };
+    const body = { ...form, codigoInterno: form.codigoInterno || genCodigo(), name: `${form.nombre} ${form.apellidos}`.trim(), horasDia: Number(form.horasDia), diasLibresAnio: Number(form.diasLibresAnio), rolPrincipal: form.rolOperativo };
     const res = await fetch("/api/colaboradores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const saved = await res.json();
     if (saved.error) { alert(saved.error); return; }
     setColaboradores(p => [...p, saved]);
     setModal(false);
-    setForm({ codigoInterno: "", nombre: "", apellidos: "", tipoId: "Cédula de identidad", cedula: "", correo: "", telefono: "", fechaIngreso: "", fechaNacimiento: "", tribu: "Dunamis", rolPrincipal: "Técnico", diasLibresAnio: 15, horasDia: 8, status: "Activo" });
+    setForm({ codigoInterno: "", nombre: "", apellidos: "", tipoId: "Cédula de identidad", cedula: "", correo: "", telefono: "", fechaIngreso: "", fechaNacimiento: "", tribu: "Dunamis", puesto: "", rolOperativo: "Técnico", diasLibresAnio: 15, horasDia: 8, status: "Activo" });
     setFormErrors({});
   };
 
@@ -351,7 +352,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
       codigoInterno: co.codigoInterno || "", nombre: co.nombre || parts[0] || "", apellidos: co.apellidos || parts.slice(1).join(" ") || "",
       tipoId: co.tipoId || "Cédula de identidad", cedula: co.cedula || "", correo: co.correo || co.email || "",
       telefono: co.telefono || "", fechaIngreso: co.fechaIngreso || "", fechaNacimiento: co.fechaNacimiento || "",
-      tribu: co.tribu || "Dunamis", rolPrincipal: co.rolPrincipal || "Técnico",
+      tribu: co.tribu || "Dunamis", puesto: co.puesto || "", rolOperativo: co.rolOperativo || co.rolPrincipal || "Técnico",
       diasLibresAnio: co.diasLibresAnio || 15, horasDia: co.horasDia || 8, status: co.status || "Activo"
     });
     setFormErrors({});
@@ -384,7 +385,10 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
         <Input label="Fecha de nacimiento" type="date" value={f.fechaNacimiento} onChange={e => setF(x => ({ ...x, fechaNacimiento: e.target.value }))} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Select label="Rol principal" value={f.rolPrincipal} onChange={e => setF(x => ({ ...x, rolPrincipal: e.target.value }))} options={ROLES_DEFAULT} />
+        <Select label="Puesto" value={f.puesto} onChange={e => setF(x => ({ ...x, puesto: e.target.value }))} options={[{ value: "", label: "Seleccionar puesto..." }, ...(maestros?.puestos?.length ? maestros.puestos : PUESTOS_DEFAULT).map(p => ({ value: p, label: p }))]} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Select label="Rol Operativo" value={f.rolOperativo} onChange={e => setF(x => ({ ...x, rolOperativo: e.target.value }))} options={(maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT)} />
         <Input label="Horas/día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: e.target.value }))} />
         <Input label="Días libres/año" type="number" value={f.diasLibresAnio} onChange={e => setF(x => ({ ...x, diasLibresAnio: e.target.value }))} />
       </div>
@@ -415,7 +419,12 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
               <tr key={co.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${co.status === "Inactivo" ? "opacity-50" : ""}`}>
                 <td className="px-3 py-3"><button onClick={() => setDetailModal(co)} className="text-blue-400 font-mono text-xs hover:underline font-bold">{co.codigoInterno || `COL-${co.id}`}</button></td>
                 <td className="px-3 py-3"><button onClick={() => setDetailModal(co)} className="text-white font-medium hover:text-blue-300 text-left">{co.name}</button></td>
-                <td className="px-3 py-3 whitespace-nowrap"><Pill label={co.rolPrincipal} color={co.rolPrincipal} /></td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <div className="space-y-0.5">
+                    {co.puesto && <p className="text-xs text-slate-400">{co.puesto}</p>}
+                    <Pill label={co.rolOperativo || co.rolPrincipal} color={co.rolOperativo || co.rolPrincipal} />
+                  </div>
+                </td>
                 <td className="px-3 py-3 whitespace-nowrap"><Pill label={co.tribu} color={co.tribu} /></td>
                 <td className="px-3 py-3 text-slate-400 text-xs">{co.correo || co.email || "—"}</td>
                 <td className="px-3 py-3 text-slate-400 text-xs font-mono">{co.telefono || "—"}</td>
@@ -462,7 +471,8 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
               ["Correo", detailModal.correo || detailModal.email || "—"],
               ["Teléfono", detailModal.telefono || "—"],
               ["Tribu", detailModal.tribu],
-              ["Rol principal", detailModal.rolPrincipal],
+              ["Puesto", detailModal.puesto || "—"],
+              ["Rol Operativo", detailModal.rolOperativo || detailModal.rolPrincipal || "—"],
               ["Horas/día", detailModal.horasDia],
               ["Días libres/año", detailModal.diasLibresAnio || 15],
               ["Fecha ingreso", detailModal.fechaIngreso || "—"],
@@ -918,7 +928,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             <div className="space-y-4">
               <Select label="Colaborador" value={dispForm.colaborador} onChange={e => setDispForm(f => ({ ...f, colaborador: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...activos.map(n => ({ value: n, label: n }))]} />
               <div className="grid grid-cols-2 gap-3">
-                <Select label="Rol" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
+                <Select label="Rol Operativo" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT} />
                 <Select label="Tribu" value={dispForm.tribu} onChange={e => setDispForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
               </div>
               <div className="grid grid-cols-2 gap-3">
@@ -1409,7 +1419,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
                         <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-xs font-bold text-blue-300 flex-shrink-0">{p.colab.name.charAt(0)}</div>
                         <div>
                           <p className="text-sm font-medium text-white">{p.colab.name}</p>
-                          <p className="text-xs text-slate-500">{p.colab.rolPrincipal} · {p.disponible}h disp.</p>
+                          <p className="text-xs text-slate-500">{p.colab.rolOperativo || p.colab.rolPrincipal} · {p.disponible}h disp.</p>
                         </div>
                       </div>
                       <div className="text-right flex-shrink-0">
@@ -1489,7 +1499,7 @@ function ProveedorFormFields({ f, setF, formErrors, setFormErrors, paises }) {
         </div>
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Especialidad / Rol" value={f.especialidad} onChange={e => setF(x => ({ ...x, especialidad: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...ROLES_DEFAULT.map(r => ({ value: r, label: r }))]} />
+        <Select label="Especialidad / Rol Operativo" value={f.especialidad} onChange={e => setF(x => ({ ...x, especialidad: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...(maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT).map(r => ({ value: r, label: r }))]} />
         <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
       </div>
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
@@ -2317,12 +2327,14 @@ function TabMaestros({ maestros, setMaestros }) {
   const [nuevoItem, setNuevoItem] = useState("");
 
   const listas = {
-    paises:        { label: "Países" },
-    industrias:    { label: "Industrias" },
-    tiposContrato: { label: "Tipos de contrato" },
-    formasPago:    { label: "Formas de pago" },
+    paises:          { label: "Países" },
+    industrias:      { label: "Industrias" },
+    tiposContrato:   { label: "Tipos de contrato" },
+    formasPago:      { label: "Formas de pago" },
+    puestos:         { label: "Puestos" },
+    rolesOperativos: { label: "Roles Operativos" },
   };
-  const defaults = { paises: PAISES_DEFAULT, industrias: INDUSTRIAS_DEFAULT, tiposContrato: TIPOS_CONTRATO_DEFAULT, formasPago: ["Transferencia","Cheque","Tarjeta","SINPE","Otro"] };
+  const defaults = { paises: PAISES_DEFAULT, industrias: INDUSTRIAS_DEFAULT, tiposContrato: TIPOS_CONTRATO_DEFAULT, formasPago: ["Transferencia","Cheque","Tarjeta","SINPE","Otro"], puestos: PUESTOS_DEFAULT, rolesOperativos: ROLES_DEFAULT };
   const current = maestros[tab]?.length ? maestros[tab] : defaults[tab];
 
   const save = async (updated) => {
@@ -2598,7 +2610,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
 
   // Resumen rápido del mes seleccionado
   const resumenMes = TRIBUS_DEFAULT.map(tribu => {
-    const roles = [...new Set(colaboradores.filter(c => c.tribu === tribu && c.status === "Activo").map(c => c.rolPrincipal))];
+    const roles = [...new Set(colaboradores.filter(c => c.tribu === tribu && c.status === "Activo").map(c => c.rolOperativo || c.rolPrincipal))];
     const totalDisp = ROLES_DEFAULT.reduce((s, rol) => s + motor.capacidadRolTribu(tribu, rol, mesFilter), 0);
     const totalAsig = asignaciones.filter(a => a.tribu === tribu && a.mes === mesFilter).reduce((s, a) => s + a.horas, 0);
     const pct = totalDisp > 0 ? Math.round((totalAsig / totalDisp) * 100) : 0;
@@ -3928,7 +3940,7 @@ export default function App() {
   const [clientes, setClientes] = useState([]);
   const [contactos, setContactos] = useState([]);
   const [contratos, setContratos] = useState([]);
-  const [maestros, setMaestros] = useState({ paises: [], industrias: [], tiposContrato: [], formasPago: [] });
+  const [maestros, setMaestros] = useState({ paises: [], industrias: [], tiposContrato: [], formasPago: [], puestos: [], rolesOperativos: [] });
   const [proveedores, setProveedores] = useState([]);
 
   useEffect(() => {

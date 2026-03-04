@@ -13,6 +13,8 @@ async function ensure() {
     tipo_id TEXT DEFAULT 'Cédula de identidad',
     cedula TEXT,
     rol_principal TEXT DEFAULT 'Técnico',
+    rol_operativo TEXT DEFAULT 'Técnico',
+    puesto TEXT DEFAULT '',
     tribu TEXT DEFAULT 'Dunamis',
     status TEXT DEFAULT 'Activo',
     correo TEXT,
@@ -34,6 +36,8 @@ async function ensure() {
   try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS fecha_ingreso DATE`; } catch {}
   try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS fecha_nacimiento DATE`; } catch {}
   try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS dias_libres_anio INTEGER DEFAULT 15`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS rol_operativo TEXT DEFAULT 'Técnico'`; } catch {}
+  try { await sql`ALTER TABLE colaboradores ADD COLUMN IF NOT EXISTS puesto TEXT DEFAULT ''`; } catch {}
 }
 
 const map = (r: any) => ({
@@ -44,7 +48,9 @@ const map = (r: any) => ({
   apellidos: r.apellidos || (r.name || "").split(" ").slice(1).join(" "),
   tipoId: r.tipo_id || "Cédula de identidad",
   cedula: r.cedula || "",
-  rolPrincipal: r.rol_principal || "Técnico",
+  rolPrincipal: r.rol_operativo || r.rol_principal || "Técnico",
+  rolOperativo: r.rol_operativo || r.rol_principal || "Técnico",
+  puesto: r.puesto || "",
   tribu: r.tribu || "Dunamis",
   status: r.status || "Activo",
   correo: r.correo || r.email || "",
@@ -72,12 +78,12 @@ export async function POST(req: Request) {
     const [r] = await sql`
       INSERT INTO colaboradores (
         codigo_interno, name, nombre, apellidos, tipo_id, cedula,
-        rol_principal, tribu, status, correo, email, telefono,
+        rol_principal, rol_operativo, puesto, tribu, status, correo, email, telefono,
         fecha_ingreso, fecha_nacimiento, horas_dia, dias_libres_anio
       ) VALUES (
         ${b.codigoInterno||""}, ${fullName}, ${b.nombre||""}, ${b.apellidos||""},
         ${b.tipoId||"Cédula de identidad"}, ${b.cedula||""},
-        ${b.rolPrincipal||"Técnico"}, ${b.tribu||"Dunamis"}, ${b.status||"Activo"},
+        ${b.rolPrincipal||b.rolOperativo||"Técnico"}, ${b.rolOperativo||b.rolPrincipal||"Técnico"}, ${b.puesto||""}, ${b.tribu||"Dunamis"}, ${b.status||"Activo"},
         ${b.correo||b.email||""}, ${b.correo||b.email||""}, ${b.telefono||""},
         ${b.fechaIngreso||null}, ${b.fechaNacimiento||null},
         ${b.horasDia||8}, ${b.diasLibresAnio||15}
@@ -96,7 +102,7 @@ export async function PUT(req: Request) {
         codigo_interno=${b.codigoInterno||""}, name=${fullName},
         nombre=${b.nombre||""}, apellidos=${b.apellidos||""},
         tipo_id=${b.tipoId||"Cédula de identidad"}, cedula=${b.cedula||""},
-        rol_principal=${b.rolPrincipal||"Técnico"}, tribu=${b.tribu||"Dunamis"},
+        rol_principal=${b.rolOperativo||b.rolPrincipal||"Técnico"}, rol_operativo=${b.rolOperativo||b.rolPrincipal||"Técnico"}, puesto=${b.puesto||""}, tribu=${b.tribu||"Dunamis"},
         status=${b.status||"Activo"}, correo=${b.correo||b.email||""},
         email=${b.correo||b.email||""}, telefono=${b.telefono||""},
         fecha_ingreso=${b.fechaIngreso||null}, fecha_nacimiento=${b.fechaNacimiento||null},
