@@ -105,11 +105,24 @@ function Modal({ open, onClose, title, children }) {
   );
 }
 
-function Input({ label, ...props }) {
+function Input({ label, value, onChange, type = "text", ...props }) {
+  const isNum = type === "number";
+  const displayVal = isNum && (value === 0 || value === "0") ? "" : value;
+  const handleChange = (e) => {
+    if (!onChange) return;
+    if (isNum && e.target.value === "") {
+      const synth = { ...e, target: { ...e.target, value: "0" } };
+      onChange(synth);
+    } else {
+      onChange(e);
+    }
+  };
   return (
     <div>
       {label && <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">{label}</label>}
-      <input className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" {...props} />
+      <input type={type} value={displayVal} onChange={handleChange}
+        onFocus={e => isNum && e.target.select()}
+        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" {...props} />
     </div>
   );
 }
@@ -504,11 +517,17 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
   // Calendario: guardar cambio en BD con debounce
   const handleCalEdit = async (mes, field, val) => {
-    const updated = calendar.map(c => c.mes === mes ? { ...c, [field]: Number(val), dif20: field === "diasLaborales" ? Number(val) - 20 : c.dif20 } : c);
+    const updated = calendar.map(c => {
+      if (c.mes !== mes) return c;
+      const diasBrutos = field === "diasLaboralesBrutos" ? Number(val) : (c.diasLaboralesBrutos ?? c.diasLaborales);
+      const diasLibres = field === "diasLibres" ? Number(val) : (c.diasLibres ?? c.feriados ?? 0);
+      const netos = Math.max(0, diasBrutos - diasLibres);
+      return { ...c, [field]: Number(val), diasLaboralesBrutos: diasBrutos, diasLibres, diasLaborales: netos, feriados: diasLibres, dif20: netos - 20 };
+    });
     setCalendar(updated);
     const row = updated.find(c => c.mes === mes);
     setSavingCal(mes);
-    await fetch("/api/calendar", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(row) });
+    await fetch("/api/calendar", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...row, diasLaborales: row.diasLaborales, feriados: row.diasLibres ?? row.feriados }) });
     setSavingCal(null);
   };
 
@@ -519,12 +538,15 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
     const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
     const [yr, mo] = calForm.mes.split("-");
     const autoLabel = `${MESES_ES[parseInt(mo,10)-1]} ${yr}`;
-    const body = { ...calForm, label: autoLabel, diasLaborales: Number(calForm.diasLaborales), feriados: Number(calForm.feriados), dif20: Number(calForm.diasLaborales) - 20 };
+    const brutos = Number(calForm.diasLaboralesBrutos ?? 20);
+    const libres = Number(calForm.diasLibres ?? 0);
+    const netos = Math.max(0, brutos - libres);
+    const body = { mes: calForm.mes, label: autoLabel, diasLaborales: netos, diasLaboralesBrutos: brutos, diasLibres: libres, feriados: libres, dif20: netos - 20 };
     const res = await fetch("/api/calendar", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     if (res.ok) {
-      setCalendar(p => [...p, body].sort((a, b) => a.mes.localeCompare(b.mes)));
+      setCalendar(p => [...p, body].sort((a, b) => b.mes.localeCompare(a.mes)));
       setCalModal(false);
-      setCalForm({ mes: "", label: "", diasLaborales: 20, feriados: 0 });
+      setCalForm({ mes: "", diasLaboralesBrutos: 20, diasLibres: 0 });
     }
   };
 
@@ -704,54 +726,105 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             <p className="text-xs text-slate-500">Configura los días laborales reales por mes. Los cambios se guardan automáticamente.</p>
             <Btn size="sm" onClick={() => setCalModal(true)}>+ Agregar mes</Btn>
           </div>
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+            <table className="w-full text-sm min-w-[560px]">
               <thead className="bg-slate-800/80">
-                <tr>{["Mes", "Feriados", "Días laborales netos", "Dif. vs 20 días", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+                <tr>
+                  {["Mes", "Días Lab. Brutos", "Días Libres", "Días Lab. Netos", "Dif. vs 20 días", ""].map(h =>
+                    <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider whitespace-nowrap">{h}</th>
+                  )}
+                </tr>
               </thead>
               <tbody>
-                {calDesc.map(c => (
-                  <tr key={c.mes} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                    <td className="px-4 py-2.5 text-white font-medium">
-                      {c.label}
-                      {savingCal === c.mes && <span className="ml-2 text-xs text-blue-400 animate-pulse">guardando...</span>}
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <input type="number" min="0" max="10" value={c.feriados}
-                        onChange={e => handleCalEdit(c.mes, "feriados", e.target.value)}
-                        className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-blue-500" />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <input type="number" min="1" max="23" value={c.diasLaborales}
-                        onChange={e => handleCalEdit(c.mes, "diasLaborales", e.target.value)}
-                        className="w-16 bg-slate-700 border border-slate-600 rounded px-2 py-1 text-xs text-blue-300 font-mono font-bold focus:outline-none focus:border-blue-500" />
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <span className={`font-mono text-sm font-bold ${c.dif20 > 0 ? "text-emerald-400" : c.dif20 < 0 ? "text-red-400" : "text-slate-400"}`}>
-                        {c.dif20 > 0 ? "+" : ""}{c.dif20}
-                      </span>
-                    </td>
-                    <td className="px-4 py-2.5">
-                      <button onClick={() => handleDeleteMes(c.mes)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Eliminar</button>
-                    </td>
-                  </tr>
-                ))}
+                {calDesc.map(c => {
+                  const brutos = c.diasLaboralesBrutos ?? c.diasLaborales;
+                  const libres = c.diasLibres ?? c.feriados ?? 0;
+                  const netos = Math.max(0, brutos - libres);
+                  return (
+                    <tr key={c.mes} className="border-t border-slate-700/30 hover:bg-slate-800/20">
+                      <td className="px-4 py-2.5 text-white font-medium whitespace-nowrap">
+                        {c.label}
+                        {savingCal === c.mes && <span className="ml-2 text-xs text-blue-400 animate-pulse">guardando...</span>}
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <input type="number" min="1" max="31"
+                          value={brutos === 0 ? "" : brutos}
+                          onChange={e => handleCalEdit(c.mes, "diasLaboralesBrutos", e.target.value === "" ? 0 : e.target.value)}
+                          onFocus={e => e.target.select()}
+                          className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-blue-500" />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <input type="number" min="0" max="15"
+                          value={libres === 0 ? "" : libres}
+                          onChange={e => handleCalEdit(c.mes, "diasLibres", e.target.value === "" ? 0 : e.target.value)}
+                          onFocus={e => e.target.select()}
+                          className="w-16 bg-slate-800 border border-slate-700 rounded px-2 py-1 text-xs text-white font-mono focus:outline-none focus:border-blue-500" />
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className="w-16 inline-block text-center bg-slate-900/60 border border-slate-700/30 rounded px-2 py-1 text-xs text-blue-300 font-mono font-bold">{netos}</span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <span className={`font-mono text-sm font-bold ${netos - 20 > 0 ? "text-emerald-400" : netos - 20 < 0 ? "text-red-400" : "text-slate-400"}`}>
+                          {netos - 20 > 0 ? "+" : ""}{netos - 20}
+                        </span>
+                      </td>
+                      <td className="px-4 py-2.5">
+                        <button onClick={() => handleDeleteMes(c.mes)} className="text-xs text-red-400 hover:text-red-300 transition-colors">Eliminar</button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
           <Modal open={calModal} onClose={() => setCalModal(false)} title="Agregar mes al calendario">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
-                <Input label="Mes (YYYY-MM)" value={calForm.mes} onChange={e => setCalForm(f => ({ ...f, mes: e.target.value }))} placeholder="2026-07" />
+              <div>
+                <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-2">Mes</label>
+                <div className="grid grid-cols-4 gap-2">
+                  {["01","02","03","04","05","06","07","08","09","10","11","12"].map(mo => {
+                    const MESES_ES = ["Ene","Feb","Mar","Abr","May","Jun","Jul","Ago","Sep","Oct","Nov","Dic"];
+                    const val = `2026-${mo}`;
+                    const exists = !!calendar.find(x => x.mes === val);
+                    const selected = calForm.mes === val;
+                    return (
+                      <button key={mo} disabled={exists} onClick={() => setCalForm(f => ({ ...f, mes: val }))}
+                        className={`py-2 rounded-lg text-xs font-medium transition-colors border ${selected ? "bg-blue-600 border-blue-500 text-white" : exists ? "bg-slate-800/30 border-slate-700/20 text-slate-600 cursor-not-allowed" : "bg-slate-800 border-slate-700 text-slate-300 hover:bg-slate-700"}`}>
+                        {MESES_ES[parseInt(mo,10)-1]}
+                      </button>
+                    );
+                  })}
+                </div>
+                {calForm.mes && <p className="text-xs text-blue-400 mt-2">Seleccionado: {calForm.mes}</p>}
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <Input label="Días laborales" type="number" min="1" max="23" value={calForm.diasLaborales} onChange={e => setCalForm(f => ({ ...f, diasLaborales: e.target.value }))} />
-                <Input label="Feriados" type="number" min="0" max="10" value={calForm.feriados} onChange={e => setCalForm(f => ({ ...f, feriados: e.target.value }))} />
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Días lab. brutos</label>
+                  <input type="number" min="1" max="31"
+                    value={calForm.diasLaboralesBrutos === 0 ? "" : (calForm.diasLaboralesBrutos ?? 20)}
+                    onChange={e => setCalForm(f => ({ ...f, diasLaboralesBrutos: e.target.value === "" ? 0 : Number(e.target.value) }))}
+                    onFocus={e => e.target.select()}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500" />
+                </div>
+                <div>
+                  <label className="block text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Días libres</label>
+                  <input type="number" min="0" max="15"
+                    value={calForm.diasLibres === 0 ? "" : (calForm.diasLibres ?? 0)}
+                    onChange={e => setCalForm(f => ({ ...f, diasLibres: e.target.value === "" ? 0 : Number(e.target.value) }))}
+                    onFocus={e => e.target.select()}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white font-mono focus:outline-none focus:border-blue-500" />
+                </div>
               </div>
+              {calForm.mes && (
+                <div className="bg-slate-800/50 rounded-lg p-3 flex items-center justify-between">
+                  <span className="text-xs text-slate-400">Días laborales netos</span>
+                  <span className="text-lg font-bold text-blue-300 font-mono">{Math.max(0, (calForm.diasLaboralesBrutos ?? 20) - (calForm.diasLibres ?? 0))}</span>
+                </div>
+              )}
               <div className="flex justify-end gap-2 pt-2">
                 <Btn variant="ghost" onClick={() => setCalModal(false)}>Cancelar</Btn>
-                <Btn onClick={handleAddMes}>Agregar</Btn>
+                <Btn onClick={handleAddMes} disabled={!calForm.mes}>Agregar</Btn>
               </div>
             </div>
           </Modal>
