@@ -2175,7 +2175,7 @@ function ModuloContactos({ contactos, setContactos, clientes }) {
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
-        <ContactoForm f={editForm} setF={setEditForm} />
+        <ContactoFormFields f={editForm} setF={setEditForm} formErrors={formErrors} setFormErrors={setFormErrors} clientes={clientes} />
         <div className="flex justify-between pt-4">
           <Btn variant="danger" onClick={() => { handleDelete(editModal); setEditModal(null); }}>Eliminar</Btn>
           <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div>
