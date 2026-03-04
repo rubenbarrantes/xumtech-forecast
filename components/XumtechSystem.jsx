@@ -932,15 +932,14 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   const [search, setSearch] = useState("");
   const [tribFilter, setTribFilter] = useState("Todas");
   const [estadoFilter, setEstadoFilter] = useState("Activo");
-  const [modal, setModal] = useState(false);          // crear
-  const [editModal, setEditModal] = useState(null);   // editar — servicio objeto
+  const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
   const [editForm, setEditForm] = useState(SERVICIO_FORM_EMPTY);
   const [detail, setDetail] = useState(null);
   const [rolesModal, setRolesModal] = useState(null);
   const [form, setForm] = useState(SERVICIO_FORM_EMPTY);
   const [rolesForm, setRolesForm] = useState(ROLES_SERVICIO_EMPTY);
 
-  // PO: cualquier colaborador activo (sin restricción de rol)
   const pos = colaboradores.filter(c => c.status === "Activo").map(c => c.name).sort();
 
   const filtered = servicios.filter(s =>
@@ -951,7 +950,6 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
   const tieneHorasLimite = (tipo) => ["Soporte Evolutivo", "Soporte Crítico", "Soporte Evolutivo + Crítico", "Bolsa de Horas"].includes(tipo);
 
-  // ── Crear ─────────────────────────────────────────────────────────────────
   const handleAdd = async () => {
     if (!form.nombre.trim()) return;
     const body = { ...form, horasLimite: Number(form.horasLimite), personasDedicadas: Number(form.personasDedicadas) };
@@ -962,20 +960,12 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
     setForm(SERVICIO_FORM_EMPTY);
   };
 
-  // ── Abrir edición ─────────────────────────────────────────────────────────
   const openEdit = (s) => {
-    setEditForm({
-      nombre: s.nombre, tipo: s.tipo, tribu: s.tribu, po: s.po,
-      contratoId: s.contratoId, jiraId: s.jiraId, tecnologia: s.tecnologia,
-      horasLimite: s.horasLimite, personasDedicadas: s.personasDedicadas,
-      estado: s.estado, fechaInicio: s.fechaInicio, fechaVencimiento: s.fechaVencimiento,
-      renovable: s.renovable,
-    });
+    setEditForm({ nombre: s.nombre, tipo: s.tipo, tribu: s.tribu, po: s.po, contratoId: s.contratoId, jiraId: s.jiraId, tecnologia: s.tecnologia, horasLimite: s.horasLimite, personasDedicadas: s.personasDedicadas, estado: s.estado, fechaInicio: s.fechaInicio, fechaVencimiento: s.fechaVencimiento, renovable: s.renovable });
     setEditModal(s);
     setDetail(null);
   };
 
-  // ── Guardar edición ───────────────────────────────────────────────────────
   const handleEdit = async () => {
     if (!editForm.nombre.trim()) return;
     const body = { id: editModal.id, ...editForm, horasLimite: Number(editForm.horasLimite), personasDedicadas: Number(editForm.personasDedicadas) };
@@ -986,15 +976,14 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
     setEditModal(null);
   };
 
-  // ── Eliminar ──────────────────────────────────────────────────────────────
   const handleDelete = async (s) => {
     if (!confirm(`¿Eliminar "${s.nombre}"? Se eliminarán también todas sus asignaciones.`)) return;
     await fetch("/api/servicios", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: s.id }) });
     setServicios(p => p.filter(x => x.id !== s.id));
     setDetail(null);
+    setEditModal(null);
   };
 
-  // ── Cambiar estado ────────────────────────────────────────────────────────
   const handleToggleEstado = async (s) => {
     const body = { ...s, estado: s.estado === "Activo" ? "Inactivo" : "Activo" };
     const res = await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
@@ -1003,7 +992,6 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
     setServicios(p => p.map(x => x.id === s.id ? { ...x, estado: body.estado } : x));
   };
 
-  // ── Roles ─────────────────────────────────────────────────────────────────
   const handleSaveRoles = () => {
     setServicios(p => p.map(s => s.id === rolesModal ? { ...s, roles: { ...rolesForm } } : s));
     setRolesModal(null);
@@ -1015,7 +1003,6 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   };
   const rolesActivos = (s) => Object.entries(s.roles || {}).filter(([, v]) => v).map(([k]) => k);
 
-  // ── Form compartido (create / edit) ──────────────────────────────────────
   const ServicioForm = ({ f, setF, isEdit }) => (
     <div className="space-y-4">
       <Input label="Nombre" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
@@ -1028,12 +1015,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         <Input label="ID Jira" value={f.jiraId} onChange={e => setF(x => ({ ...x, jiraId: e.target.value }))} placeholder="JIRA-xxx" />
       </div>
       <div className="grid grid-cols-2 gap-3">
-        <Select
-          label="PO / Responsable"
-          value={f.po}
-          onChange={e => setF(x => ({ ...x, po: e.target.value }))}
-          options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]}
-        />
+        <Select label="PO / Responsable" value={f.po} onChange={e => setF(x => ({ ...x, po: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]} />
         <Input label="Tecnología" value={f.tecnologia} onChange={e => setF(x => ({ ...x, tecnologia: e.target.value }))} placeholder="Salesforce, Oracle, Adobe..." />
       </div>
       {f.tipo === "Talento Dedicado"
@@ -1044,9 +1026,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
         <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
       </div>
-      {isEdit && (
-        <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={["Activo", "Inactivo"]} />
-      )}
+      {isEdit && <Select label="Estado" value={f.estado} onChange={e => setF(x => ({ ...x, estado: e.target.value }))} options={["Activo", "Inactivo"]} />}
       <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
         <input type="checkbox" checked={f.renovable} onChange={e => setF(x => ({ ...x, renovable: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
         Contrato renovable
@@ -1057,10 +1037,9 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   return (
     <div className="space-y-5">
       <div className="grid grid-cols-4 gap-3">
-        <KPI title="Total servicios" value={servicios.filter(s => s.estado === "Activo").length} color="blue" />
+        <KPI title="Total activos" value={servicios.filter(s => s.estado === "Activo").length} color="blue" />
         {TRIBUS_DEFAULT.map(t => <KPI key={t} title={t} value={servicios.filter(s => s.tribu === t && s.estado === "Activo").length} color="green" />)}
       </div>
-
       <div className="flex flex-wrap items-center gap-3">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar servicio o contrato..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-56" />
         <div className="flex gap-1">
@@ -1071,19 +1050,18 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         </div>
         <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo servicio</Btn>
       </div>
-
       <div className="rounded-xl border border-slate-700/50 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/80">
-            <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Tecnología", "Límite horas", "Vigencia", "Estado", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
+            <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Tecnología", "Límite", "Vigencia", "Estado", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
           </thead>
           <tbody>
             {filtered.map(s => {
               const hoy = new Date();
               const venc = s.fechaVencimiento ? new Date(s.fechaVencimiento) : null;
-              const diasRestantes = venc ? Math.ceil((venc - hoy) / (1000 * 60 * 60 * 24)) : null;
-              const vigenciaColor = diasRestantes === null ? "text-slate-500" : diasRestantes < 0 ? "text-red-400" : diasRestantes <= 60 ? "text-amber-400" : "text-emerald-400";
-              const vigenciaLabel = diasRestantes === null ? "Sin fecha" : diasRestantes < 0 ? `Venció hace ${Math.abs(diasRestantes)}d` : diasRestantes <= 30 ? `${diasRestantes}d ⚠` : s.fechaVencimiento;
+              const dias = venc ? Math.ceil((venc - hoy) / 86400000) : null;
+              const vigColor = dias === null ? "text-slate-500" : dias < 0 ? "text-red-400" : dias <= 60 ? "text-amber-400" : "text-emerald-400";
+              const vigLabel = dias === null ? "Sin fecha" : dias < 0 ? `Venció hace ${Math.abs(dias)}d` : dias <= 30 ? `${dias}d ⚠` : s.fechaVencimiento;
               return (
                 <tr key={s.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${s.estado === "Inactivo" ? "opacity-50" : ""}`}>
                   <td className="px-3 py-3 text-blue-400 font-mono text-xs">{s.contratoId || "—"}</td>
@@ -1092,25 +1070,14 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
                   <td className="px-3 py-3"><Pill label={s.tribu} color={s.tribu} /></td>
                   <td className="px-3 py-3 text-slate-300 text-xs">{s.po || "—"}</td>
                   <td className="px-3 py-3 text-slate-400 text-xs">{s.tecnologia || "—"}</td>
-                  <td className="px-3 py-3 text-slate-300 font-mono text-xs">
-                    {s.tipo === "Talento Dedicado" ? `${s.personasDedicadas}p` : `${s.horasLimite}h`}
-                  </td>
-                  <td className="px-3 py-3">
-                    <div className="flex flex-col gap-0.5">
-                      <span className={`font-mono text-xs font-semibold ${vigenciaColor}`}>{vigenciaLabel}</span>
-                      {s.renovable && <span className="text-xs text-slate-500">renovable</span>}
-                    </div>
-                  </td>
-                  <td className="px-3 py-3">
-                    <Badge color={s.estado === "Activo" ? "green" : "gray"}>{s.estado}</Badge>
-                  </td>
+                  <td className="px-3 py-3 text-slate-300 font-mono text-xs">{s.tipo === "Talento Dedicado" ? `${s.personasDedicadas}p` : `${s.horasLimite}h`}</td>
+                  <td className="px-3 py-3"><div className="flex flex-col gap-0.5"><span className={`font-mono text-xs font-semibold ${vigColor}`}>{vigLabel}</span>{s.renovable && <span className="text-xs text-slate-500">renovable</span>}</div></td>
+                  <td className="px-3 py-3"><Badge color={s.estado === "Activo" ? "green" : "gray"}>{s.estado}</Badge></td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-1">
                       <Btn variant="ghost" size="sm" onClick={() => setDetail(s)}>Ver</Btn>
                       <Btn variant="ghost" size="sm" onClick={() => openEdit(s)}>✏️</Btn>
-                      <Btn variant={s.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(s)}>
-                        {s.estado === "Activo" ? "Desactivar" : "Activar"}
-                      </Btn>
+                      <Btn variant={s.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(s)}>{s.estado === "Activo" ? "Desactivar" : "Activar"}</Btn>
                       <Btn variant="danger" size="sm" onClick={() => handleDelete(s)}>🗑</Btn>
                     </div>
                   </td>
@@ -1121,85 +1088,39 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         </table>
         {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron servicios</p>}
       </div>
-
-      {/* Modal: Crear */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo servicio / proyecto">
         <ServicioForm f={form} setF={setForm} isEdit={false} />
-        <div className="flex justify-end gap-2 pt-4">
-          <Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn>
-          <Btn onClick={handleAdd}>Guardar</Btn>
-        </div>
+        <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
-
-      {/* Modal: Editar */}
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
         <ServicioForm f={editForm} setF={setEditForm} isEdit={true} />
         <div className="flex justify-between pt-4">
           <Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn>
-          <div className="flex gap-2">
-            <Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn>
-            <Btn onClick={handleEdit}>Guardar cambios</Btn>
-          </div>
+          <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar cambios</Btn></div>
         </div>
       </Modal>
-
-      {/* Modal: Roles */}
-      <Modal open={!!rolesModal} onClose={() => setRolesModal(null)} title={`Roles requeridos — ${servicios.find(s => s.id === rolesModal)?.nombre}`}>
+      <Modal open={!!rolesModal} onClose={() => setRolesModal(null)} title={`Roles — ${servicios.find(s => s.id === rolesModal)?.nombre}`}>
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">Selecciona los roles que participan en este servicio/proyecto.</p>
           <div className="grid grid-cols-2 gap-3">
             {ROLES_DEFAULT.map(rol => (
-              <label key={rol} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${rolesForm[rol] ? "border-blue-500/50 bg-blue-500/10" : "border-slate-700/50 bg-slate-800/30 hover:bg-slate-800/60"}`}>
+              <label key={rol} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${rolesForm[rol] ? "border-blue-500/50 bg-blue-500/10" : "border-slate-700/50 bg-slate-800/30"}`}>
                 <input type="checkbox" checked={!!rolesForm[rol]} onChange={e => setRolesForm(f => ({ ...f, [rol]: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
                 <Pill label={rol} color={rol} />
               </label>
             ))}
           </div>
-          <div className="flex justify-end gap-2 pt-2">
-            <Btn variant="ghost" onClick={() => setRolesModal(null)}>Cancelar</Btn>
-            <Btn onClick={handleSaveRoles}>Guardar</Btn>
-          </div>
+          <div className="flex justify-end gap-2 pt-2"><Btn variant="ghost" onClick={() => setRolesModal(null)}>Cancelar</Btn><Btn onClick={handleSaveRoles}>Guardar</Btn></div>
         </div>
       </Modal>
-
-      {/* Modal: Detalle */}
       <Modal open={!!detail} onClose={() => setDetail(null)} title="Detalle del servicio">
         {detail && (
           <div className="space-y-3">
-            {[
-              ["Nombre", detail.nombre],
-              ["Tipo", detail.tipo],
-              ["Tribu", detail.tribu],
-              ["PO / Responsable", detail.po || "—"],
-              ["Contrato", detail.contratoId || "—"],
-              ["Jira", detail.jiraId || "—"],
-              ["Tecnología", detail.tecnologia || "—"],
-              ["Límite horas", detail.tipo === "Talento Dedicado" ? `${detail.personasDedicadas} personas dedicadas` : `${detail.horasLimite}h`],
-              ["Fecha inicio", detail.fechaInicio || "—"],
-              ["Fecha vencimiento", detail.fechaVencimiento || "—"],
-              ["Estado", detail.estado],
-              ["Renovable", detail.renovable ? "Sí" : "No"],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between py-2 border-b border-slate-700/30">
-                <span className="text-xs text-slate-500 uppercase tracking-wider">{k}</span>
-                <span className="text-sm text-white font-medium">{v}</span>
-              </div>
+            {[["Nombre",detail.nombre],["Tipo",detail.tipo],["Tribu",detail.tribu],["PO",detail.po||"—"],["Contrato",detail.contratoId||"—"],["Jira",detail.jiraId||"—"],["Tecnología",detail.tecnologia||"—"],["Límite",detail.tipo==="Talento Dedicado"?`${detail.personasDedicadas}p`:`${detail.horasLimite}h`],["Inicio",detail.fechaInicio||"—"],["Vencimiento",detail.fechaVencimiento||"—"],["Estado",detail.estado],["Renovable",detail.renovable?"Sí":"No"]].map(([k,v]) => (
+              <div key={k} className="flex justify-between py-2 border-b border-slate-700/30"><span className="text-xs text-slate-500 uppercase">{k}</span><span className="text-sm text-white font-medium">{v}</span></div>
             ))}
-            <div className="pt-2">
-              <p className="text-xs text-slate-500 uppercase tracking-wider mb-2">Roles requeridos</p>
-              <div className="flex flex-wrap gap-2">
-                {rolesActivos(detail).length > 0
-                  ? rolesActivos(detail).map(r => <Pill key={r} label={r} color={r} />)
-                  : <span className="text-xs text-slate-600">No configurados</span>
-                }
-              </div>
-            </div>
             <div className="flex justify-between pt-3">
               <Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn>
-              <div className="flex gap-2">
-                <Btn variant="ghost" size="sm" onClick={() => openRolesModal(detail)}>Editar roles</Btn>
-                <Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn>
-              </div>
+              <div className="flex gap-2"><Btn variant="ghost" size="sm" onClick={() => openRolesModal(detail)}>Roles</Btn><Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn></div>
             </div>
           </div>
         )}
@@ -1210,224 +1131,210 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
 // ─── MÓDULO: GESTIÓN DE TRIBU ─────────────────────────────────────────────────
 
+function BarUtil({ pct, color }) {
+  const bg = color === "green" ? "bg-emerald-500" : color === "amber" ? "bg-amber-500" : "bg-red-500";
+  return (
+    <div className="w-full bg-slate-700/50 rounded-full h-2 mt-1">
+      <div className={`h-2 rounded-full ${bg}`} style={{ width: `${Math.min(pct, 100)}%` }} />
+    </div>
+  );
+}
+
 function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad, ausencias, colaboradores, params }) {
+  const hoy = new Date();
+  const mesActual = `${hoy.getFullYear()}-${String(hoy.getMonth() + 1).padStart(2, "0")}`;
+  const [mesSel, setMesSel] = useState(mesActual);
+  const [tab, setTab] = useState("utilizacion");
 
-  const [mesSel, setMesSel] = useState("2026-01");
-  const [tab, setTab] = useState("planificacion");
-
+  const motor = useUtilizacion({ colaboradores, asignaciones, ausencias, calendar, servicios, params });
   const tribServicios = servicios.filter(s => s.tribu === tribu && s.estado === "Activo");
-  const cal = calendar.find(c => c.mes === mesSel);
-  const diasMes = cal ? cal.diasLaborales : 20;
+  const tribColabs = colaboradores.filter(c => c.tribu === tribu && c.status === "Activo");
+  const tribAsigs = (asignaciones || []).filter(a => a.tribu === tribu && a.mes === mesSel);
+  const rolesData = ROLES_DEFAULT.map(rol => motor.utilizacionRolTribu(tribu, rol, mesSel)).filter(r => r.personas > 0);
+  const porPersona = tribColabs.map(colab => motor.utilizacionPorPersona(colab, mesSel)).sort((a, b) => b.pct - a.pct);
 
-  // Horas por rol (mock editable)
-  const [horasPorRolServicio, setHorasPorRolServicio] = useState(() => {
-    const init = {};
-    tribServicios.forEach(s => {
-      ROLES_DEFAULT.forEach(r => { init[`${s.id}|${r}`] = 0; });
-    });
-    return init;
-  });
+  const totalDisp = rolesData.reduce((s, r) => s + r.disponible, 0);
+  const totalAsig = rolesData.reduce((s, r) => s + r.asignado, 0);
+  const pctGlobal = totalDisp > 0 ? Math.round(totalAsig / totalDisp * 100) : 0;
+  const semaforo = pctGlobal >= (params?.utilObjetivo || 75) ? "text-emerald-400" : pctGlobal >= 50 ? "text-amber-400" : "text-red-400";
 
-  const setHoras = (sid, rol, val) => setHorasPorRolServicio(p => ({ ...p, [`${sid}|${rol}`]: Math.max(0, Number(val)) }));
-
-  // Totales por servicio
-  const totalHorasServicio = (sid) => ROLES_DEFAULT.reduce((a, r) => a + (horasPorRolServicio[`${sid}|${r}`] || 0), 0);
-
-  // Requerido por rol (personas equiv)
-  const requeridoPorRol = useMemo(() => {
-    const map = {};
-    ROLES_DEFAULT.forEach(rol => {
-      const totalH = tribServicios.reduce((a, s) => a + (horasPorRolServicio[`${s.id}|${rol}`] || 0), 0);
-      map[rol] = +(totalH / (diasMes * HORAS_DIA)).toFixed(3);
-    });
-    return map;
-  }, [horasPorRolServicio, diasMes, tribServicios]);
-
-  // Disponible por rol en tribu
-  const disponiblePorRol = useMemo(() => {
-    const map = {};
-    ROLES_DEFAULT.forEach(rol => {
-      const entries = disponibilidad.filter(d => d.tribu === tribu && d.rol === rol && d.mes === mesSel);
-      const total = entries.reduce((a, d) => {
-        const ausEntry = ausencias.find(au => au.colaborador === d.colaborador && au.mes === mesSel);
-        const diasAus = ausEntry ? ausEntry.dias : 0;
-        const neto = d.porcentaje * ((diasMes - diasAus) / diasMes);
-        return a + neto / 100;
-      }, 0);
-      map[rol] = +total.toFixed(3);
-    });
-    return map;
-  }, [disponibilidad, ausencias, tribu, mesSel, diasMes]);
-
-  // Personas en tribu ese mes
-  const personasTribu = disponibilidad.filter(d => d.tribu === tribu && d.mes === mesSel).map(d => d.colaborador);
-  const uniquePersonas = [...new Set(personasTribu)];
-  const noCobrable = +(HORAS_NO_COBRABLE * uniquePersonas.length / (diasMes * HORAS_DIA)).toFixed(3);
-  const totalRequeridoConNC = Object.values(requeridoPorRol).reduce((a, b) => a + b, 0) + noCobrable;
-  const totalDisponible = Object.values(disponiblePorRol).reduce((a, b) => a + b, 0);
-  const diferencia = +(totalDisponible - totalRequeridoConNC).toFixed(3);
-
-  // Por persona (piloto Yarigai)
-  const porPersona = useMemo(() => {
-    if (tribu !== "Yarigai") return [];
-    return uniquePersonas.map(name => {
-      const diasAus = (ausencias.find(a => a.colaborador === name && a.mes === mesSel)?.dias || 0);
-      const dispHoras = (diasMes - diasAus) * HORAS_DIA;
-      const asigH = tribServicios.reduce((acc, s) => {
-        return acc + ROLES_DEFAULT.reduce((a, r) => a + (horasPorRolServicio[`${s.id}|${r}`] || 0), 0);
-      }, 0) / Math.max(uniquePersonas.length, 1);
-      const dif = +(asigH - dispHoras).toFixed(1);
-      return { name, dispHoras, asigH: +asigH.toFixed(1), dif };
-    });
-  }, [uniquePersonas, tribu, diasMes, ausencias, mesSel, tribServicios, horasPorRolServicio]);
+  const tabs = [
+    { id: "utilizacion",  label: "Utilización por rol" },
+    { id: "asignaciones", label: "Asignaciones activas" },
+    { id: "capacidad",    label: "Capacidad vs Asignado" },
+    { id: "personas",     label: "Por colaborador" },
+  ];
 
   return (
     <div className="space-y-5">
-      {/* Selector mes */}
-      <div className="flex items-center gap-3">
-        <span className="text-xs text-slate-400 uppercase tracking-wider">Mes:</span>
-        <div className="flex gap-1 flex-wrap">
-          {calendar.slice(-8).map(c => (
-            <button key={c.mes} onClick={() => setMesSel(c.mes)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mesSel === c.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{c.label}</button>
+      {/* Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-white">{tribu}</h2>
+          <p className={`text-2xl font-bold ${semaforo}`}>{pctGlobal}% <span className="text-sm font-normal text-slate-400">utilización {mesSel}</span></p>
+        </div>
+        <div className="flex flex-wrap gap-2">
+          {calendar.map(c => (
+            <button key={c.mes} onClick={() => setMesSel(c.mes)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mesSel === c.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"}`}>{c.label}</button>
           ))}
         </div>
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-700/50 pb-1">
-        {[["planificacion", "?? Planificación"], ["capacidad", "⚖️ Capacidad vs Demanda"], ...(tribu === "Yarigai" ? [["personas", "?? Por Persona (Piloto)"]] : [])].map(([id, label]) => (
-          <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700" : "text-slate-400 hover:text-white"}`}>{label}</button>
+      <div className="flex gap-1 border-b border-slate-700/50 pb-0">
+        {tabs.map(t => (
+          <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${tab === t.id ? "bg-slate-800 text-white border border-slate-700/50 border-b-slate-800" : "text-slate-400 hover:text-slate-300"}`}>{t.label}</button>
         ))}
       </div>
 
-      {/* PLANIFICACIÓN */}
-      {tab === "planificacion" && (
-        <div className="space-y-4">
-          <p className="text-xs text-slate-500">Ingresa las horas por rol para cada servicio en {cal?.label}. Días laborales del mes: <strong className="text-white">{diasMes}</strong></p>
-          {tribServicios.length === 0 && <p className="text-center text-slate-500 py-8">No hay servicios activos para {tribu}</p>}
-          {tribServicios.map(s => {
-            const total = totalHorasServicio(s.id);
-            const limite = s.horasLimite;
-            const sobreLimite = limite > 0 && total > limite;
-            const bajoLimite = limite > 0 && total < limite && total > 0;
-            return (
-              <div key={s.id} className={`rounded-xl border p-4 space-y-3 ${sobreLimite ? "border-red-500/40 bg-red-500/5" : bajoLimite ? "border-amber-500/30 bg-amber-500/5" : "border-slate-700/50 bg-slate-800/20"}`}>
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <span className="text-white font-semibold">{s.nombre}</span>
-                    <Badge color={s.tipo.includes("Crítico") ? "red" : "blue"}>{s.tipo}</Badge>
-                    <span className="text-xs text-slate-500 font-mono">{s.contratoId}</span>
-                  </div>
-                  <div className="flex items-center gap-3 text-xs">
-                    <span className={`font-mono font-bold ${sobreLimite ? "text-red-400" : bajoLimite ? "text-amber-400" : "text-emerald-400"}`}>{total}h / {limite > 0 ? `${limite}h` : "sin límite"}</span>
-                    {sobreLimite && <Badge color="red">Sobre límite</Badge>}
-                    {bajoLimite && <Badge color="amber">Bajo límite</Badge>}
-                  </div>
-                </div>
-                <div className="grid grid-cols-4 lg:grid-cols-7 gap-2">
-                  {ROLES_DEFAULT.map(rol => (
-                    <div key={rol}>
-                      <label className="text-xs text-slate-500 block mb-1">{rol}</label>
-                      <input
-                        type="number" min="0"
-                        value={horasPorRolServicio[`${s.id}|${rol}`] || ""}
-                        onChange={e => setHoras(s.id, rol, e.target.value)}
-                        placeholder="0"
-                        className="w-full bg-slate-800 border border-slate-700 rounded-lg px-2 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-blue-500"
-                      />
+      {/* Tab: Utilización por rol */}
+      {tab === "utilizacion" && (
+        <div className="space-y-3">
+          {rolesData.length === 0
+            ? <p className="text-slate-500 text-sm text-center py-8">No hay datos de utilización para este mes. Configura asignaciones primero.</p>
+            : rolesData.map(r => {
+                const color = r.pct >= (params?.utilObjetivo || 75) ? "green" : r.pct >= 50 ? "amber" : "red";
+                return (
+                  <div key={r.rol} className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <Pill label={r.rol} color={r.rol} />
+                        <span className="text-xs text-slate-400">{r.personas} persona{r.personas !== 1 ? "s" : ""}</span>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-lg font-bold ${color === "green" ? "text-emerald-400" : color === "amber" ? "text-amber-400" : "text-red-400"}`}>{r.pct}%</span>
+                        <span className="text-xs text-slate-500 ml-2">{r.asignado}h / {r.disponible}h</span>
+                      </div>
                     </div>
-                  ))}
-                </div>
-                {limite > 0 && (
-                  <div className="w-full bg-slate-700/50 rounded-full h-1">
-                    <div className={`h-1 rounded-full transition-all ${sobreLimite ? "bg-red-500" : bajoLimite ? "bg-amber-500" : "bg-emerald-500"}`} style={{ width: `${Math.min(100, (total / limite) * 100)}%` }} />
+                    <BarUtil pct={r.pct} color={color} />
                   </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      {/* CAPACIDAD */}
-      {tab === "capacidad" && (
-        <div className="space-y-5">
-          <div className={`rounded-xl border p-4 ${diferencia >= 0 ? "border-emerald-500/30 bg-emerald-500/5" : "border-red-500/30 bg-red-500/5"}`}>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-semibold text-white">Balance general — {tribu} — {cal?.label}</p>
-                <p className="text-xs text-slate-400 mt-0.5">Disponible: <span className="text-blue-400 font-mono font-bold">{totalDisponible.toFixed(2)}</span> personas · Requerido + No cobrable: <span className="text-slate-300 font-mono font-bold">{totalRequeridoConNC.toFixed(2)}</span></p>
-              </div>
+                );
+              })
+          }
+          {rolesData.length > 0 && (
+            <div className="bg-slate-800/60 rounded-xl p-4 border border-slate-600/50 flex justify-between items-center">
+              <span className="font-semibold text-white">Total tribu</span>
               <div className="text-right">
-                <p className={`text-3xl font-bold font-mono ${diferencia >= 0 ? "text-emerald-400" : "text-red-400"}`}>{diferencia >= 0 ? "+" : ""}{diferencia}</p>
-                <p className="text-xs text-slate-500">personas equiv.</p>
+                <span className={`text-xl font-bold ${semaforo}`}>{pctGlobal}%</span>
+                <span className="text-xs text-slate-400 ml-2">{totalAsig}h / {totalDisp}h</span>
               </div>
             </div>
-          </div>
-
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
-            <table className="w-full text-sm">
-              <thead className="bg-slate-800/80">
-                <tr>{["Rol", "Requerido", "+ No cobrable", "Disponible", "Diferencia"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
-              </thead>
-              <tbody>
-                {ROLES_DEFAULT.map(rol => {
-                  const req = requeridoPorRol[rol];
-                  const disp = disponiblePorRol[rol];
-                  const nc = rol === "GA" ? noCobrable : 0;
-                  const diff = +(disp - req - nc).toFixed(3);
-                  return (
-                    <tr key={rol} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                      <td className="px-4 py-2.5"><Pill label={rol} color={rol} /></td>
-                      <td className="px-4 py-2.5 font-mono text-slate-300">{req.toFixed(3)}</td>
-                      <td className="px-4 py-2.5 font-mono text-slate-500">{nc > 0 ? nc.toFixed(3) : "—"}</td>
-                      <td className="px-4 py-2.5 font-mono text-blue-400">{disp.toFixed(3)}</td>
-                      <td className="px-4 py-2.5 font-mono font-bold">
-                        <span className={diff >= 0 ? "text-emerald-400" : "text-red-400"}>{diff >= 0 ? "+" : ""}{diff}</span>
-                      </td>
-                    </tr>
-                  );
-                })}
-                <tr className="border-t-2 border-slate-600 bg-slate-800/50">
-                  <td className="px-4 py-2.5 font-bold text-white text-xs uppercase">TOTAL</td>
-                  <td className="px-4 py-2.5 font-mono font-bold text-slate-300">{Object.values(requeridoPorRol).reduce((a, b) => a + b, 0).toFixed(3)}</td>
-                  <td className="px-4 py-2.5 font-mono font-bold text-slate-400">{noCobrable.toFixed(3)}</td>
-                  <td className="px-4 py-2.5 font-mono font-bold text-blue-400">{totalDisponible.toFixed(3)}</td>
-                  <td className="px-4 py-2.5 font-mono font-bold text-lg">
-                    <span className={diferencia >= 0 ? "text-emerald-400" : "text-red-400"}>{diferencia >= 0 ? "+" : ""}{diferencia}</span>
-                  </td>
-                </tr>
-              </tbody>
-            </table>
-          </div>
+          )}
         </div>
       )}
 
-      {/* POR PERSONA (Yarigai piloto) */}
-      {tab === "personas" && tribu === "Yarigai" && (
+      {/* Tab: Asignaciones activas */}
+      {tab === "asignaciones" && (
         <div className="space-y-4">
-          <p className="text-xs text-slate-500">Vista piloto — distribución de horas por persona individual en {cal?.label}.</p>
-          {porPersona.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No hay asignaciones de disponibilidad configuradas para Yarigai en este mes</p>}
-          <div className="grid grid-cols-1 gap-3">
-            {porPersona.map(p => (
-              <div key={p.name} className={`rounded-xl border p-4 flex items-center justify-between ${p.dif > 0 ? "border-red-500/40 bg-red-500/5" : p.dif < -40 ? "border-amber-500/30 bg-amber-500/5" : "border-slate-700/50"}`}>
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold" style={{ background: TRIBU_COLORS["Yarigai"] + "30", color: TRIBU_COLORS["Yarigai"] }}>{p.name.split(" ").map(n => n[0]).join("").slice(0, 2)}</div>
-                  <span className="text-white font-medium">{p.name}</span>
-                </div>
-                <div className="flex items-center gap-6 text-xs">
-                  <div className="text-right"><p className="text-slate-500">Asignado</p><p className="font-mono font-bold text-slate-300">{p.asigH}h</p></div>
-                  <div className="text-right"><p className="text-slate-500">Disponible</p><p className="font-mono font-bold text-blue-400">{p.dispHoras}h</p></div>
-                  <div className="text-right">
-                    <p className="text-slate-500">Diferencia</p>
-                    <p className={`font-mono font-bold ${p.dif > 0 ? "text-red-400" : "text-emerald-400"}`}>{p.dif > 0 ? "+" : ""}{p.dif}h</p>
-                  </div>
-                  {p.dif > 0 && <Badge color="red">Sobreocupado</Badge>}
-                  {p.dif < -40 && <Badge color="amber">Subutilizado</Badge>}
-                </div>
-              </div>
-            ))}
+          <div className="grid grid-cols-3 gap-3">
+            <KPI title="Asignaciones" value={tribAsigs.length} color="blue" />
+            <KPI title="Horas totales" value={`${tribAsigs.reduce((s, a) => s + (a.horas || 0), 0)}h`} color="green" />
+            <KPI title="Servicios cubiertos" value={new Set(tribAsigs.map(a => a.servicioId)).size} color="purple" />
           </div>
+          {tribAsigs.length === 0
+            ? <p className="text-slate-500 text-sm text-center py-8">No hay asignaciones registradas para {tribu} en {mesSel}.</p>
+            : (
+              <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+                <table className="w-full text-sm">
+                  <thead className="bg-slate-800/80"><tr>{["Rol","Colaborador","Servicio","Horas"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr></thead>
+                  <tbody>
+                    {tribAsigs.map((a, i) => {
+                      const srv = servicios.find(s => s.id === a.servicioId || s.id === a.servicio_id);
+                      return (
+                        <tr key={i} className="border-t border-slate-700/30 hover:bg-slate-800/20">
+                          <td className="px-3 py-2.5"><Pill label={a.rol} color={a.rol} /></td>
+                          <td className="px-3 py-2.5 text-slate-300 text-xs">{a.colaborador || <span className="text-slate-600">Por rol</span>}</td>
+                          <td className="px-3 py-2.5 text-white text-xs">{srv?.nombre || `Servicio #${a.servicioId || a.servicio_id}`}</td>
+                          <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{a.horas}h</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )
+          }
+        </div>
+      )}
+
+      {/* Tab: Capacidad vs Asignado */}
+      {tab === "capacidad" && (
+        <div className="space-y-4">
+          <div className="grid grid-cols-3 gap-3">
+            <KPI title="Disponible" value={`${totalDisp}h`} color="blue" />
+            <KPI title="Asignado" value={`${totalAsig}h`} color={pctGlobal >= (params?.utilObjetivo || 75) ? "green" : "amber"} />
+            <KPI title="Libre" value={`${totalDisp - totalAsig}h`} color={totalDisp - totalAsig < 0 ? "red" : "green"} />
+          </div>
+          {rolesData.length > 0 && (
+            <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+              <table className="w-full text-sm">
+                <thead className="bg-slate-800/80"><tr>{["Rol","Personas","Disponible","Asignado","Libre","Utilización"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr></thead>
+                <tbody>
+                  {rolesData.map(r => {
+                    const libre = r.disponible - r.asignado;
+                    const color = r.pct >= (params?.utilObjetivo || 75) ? "text-emerald-400" : r.pct >= 50 ? "text-amber-400" : "text-red-400";
+                    return (
+                      <tr key={r.rol} className="border-t border-slate-700/30 hover:bg-slate-800/20">
+                        <td className="px-3 py-2.5"><Pill label={r.rol} color={r.rol} /></td>
+                        <td className="px-3 py-2.5 text-slate-400 text-xs">{r.personas}</td>
+                        <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{r.disponible}h</td>
+                        <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{r.asignado}h</td>
+                        <td className={`px-3 py-2.5 font-mono text-xs ${libre < 0 ? "text-red-400" : "text-emerald-400"}`}>{libre}h</td>
+                        <td className="px-3 py-2.5"><span className={`font-bold text-xs ${color}`}>{r.pct}%</span></td>
+                      </tr>
+                    );
+                  })}
+                  <tr className="border-t border-slate-600/50 bg-slate-800/40 font-semibold">
+                    <td className="px-3 py-2.5 text-white text-xs">TOTAL</td>
+                    <td className="px-3 py-2.5 text-slate-400 text-xs">{rolesData.reduce((s,r)=>s+r.personas,0)}</td>
+                    <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{totalDisp}h</td>
+                    <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{totalAsig}h</td>
+                    <td className={`px-3 py-2.5 font-mono text-xs ${totalDisp-totalAsig < 0 ? "text-red-400" : "text-emerald-400"}`}>{totalDisp-totalAsig}h</td>
+                    <td className="px-3 py-2.5"><span className={`font-bold text-xs ${semaforo}`}>{pctGlobal}%</span></td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Tab: Por colaborador */}
+      {tab === "personas" && (
+        <div className="space-y-3">
+          {porPersona.length === 0
+            ? <p className="text-slate-500 text-sm text-center py-8">No hay colaboradores activos en {tribu}.</p>
+            : porPersona.map(p => {
+                const color = p.pct >= (params?.utilObjetivo || 75) ? "green" : p.pct >= 50 ? "amber" : "red";
+                const asigPersona = tribAsigs.filter(a => a.colaborador === p.colab.name);
+                return (
+                  <div key={p.colab.name} className="bg-slate-800/40 rounded-xl p-4 border border-slate-700/30">
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-blue-600/30 border border-blue-500/30 flex items-center justify-center text-xs font-bold text-blue-300">{p.colab.name.charAt(0)}</div>
+                        <div>
+                          <p className="text-sm font-medium text-white">{p.colab.name}</p>
+                          <p className="text-xs text-slate-500">{p.colab.rolPrincipal} · {p.disponible}h disp. · {p.ausencias}d ausencia</p>
+                        </div>
+                      </div>
+                      <div className="text-right">
+                        <span className={`text-lg font-bold ${color === "green" ? "text-emerald-400" : color === "amber" ? "text-amber-400" : "text-red-400"}`}>{p.pct}%</span>
+                        <span className="text-xs text-slate-500 ml-1">{p.asignado}h</span>
+                      </div>
+                    </div>
+                    <BarUtil pct={p.pct} color={color} />
+                    {asigPersona.length > 0 && (
+                      <div className="mt-3 space-y-1">
+                        {asigPersona.map((a, i) => {
+                          const srv = servicios.find(s => s.id === a.servicioId || s.id === a.servicio_id);
+                          return <div key={i} className="flex justify-between text-xs text-slate-400 pl-2 border-l border-slate-700"><span>{srv?.nombre || "Servicio"}</span><span className="font-mono">{a.horas}h</span></div>;
+                        })}
+                      </div>
+                    )}
+                  </div>
+                );
+              })
+          }
         </div>
       )}
     </div>
