@@ -1458,15 +1458,63 @@ const PROVEEDOR_EMPTY = {
 
 const TIPOS_PROVEEDOR = ["Persona física", "Empresa"];
 
-function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDisponibilidad, calendar, params, maestros }) {
+// Form como componente de nivel superior para evitar re-mount en cada render
+function ProveedorFormFields({ f, setF, formErrors, setFormErrors, paises }) {
+  const ErrMsg = ({ field }) => formErrors[field] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[field]}</p> : null;
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Código (auto)" value={f.codigo} onChange={e => setF(x => ({ ...x, codigo: e.target.value }))} placeholder="PRV-XXXXX" />
+          <p className="text-xs text-slate-500 mt-0.5">Dejar vacío para generar automático</p>
+        </div>
+        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_PROVEEDOR} />
+      </div>
+      <div>
+        <Input label="Nombre / Razón social *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} />
+        <ErrMsg field="nombre" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Cédula / Cédula jurídica" value={f.cedula} onChange={e => setF(x => ({ ...x, cedula: e.target.value }))} placeholder="1-XXXX-XXXX" />
+        <Select label="País" value={f.pais} onChange={e => setF(x => ({ ...x, pais: e.target.value }))} options={paises} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Correo" value={f.correo} onChange={e => { setF(x => ({ ...x, correo: e.target.value })); setFormErrors(er => ({ ...er, correo: "" })); }} placeholder="proveedor@empresa.com" />
+          <ErrMsg field="correo" />
+        </div>
+        <div>
+          <Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" />
+          <ErrMsg field="telefono" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Especialidad / Rol" value={f.especialidad} onChange={e => setF(x => ({ ...x, especialidad: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...ROLES_DEFAULT.map(r => ({ value: r, label: r }))]} />
+        <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input label="Costo / hora" type="number" value={f.costoHora} onChange={e => setF(x => ({ ...x, costoHora: Number(e.target.value) }))} />
+        <Select label="Moneda" value={f.monedaCosto} onChange={e => setF(x => ({ ...x, monedaCosto: e.target.value }))} options={["USD","CRC","EUR"]} />
+        <Input label="Horas / día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: Number(e.target.value) }))} />
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas</label>
+        <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" />
+      </div>
+    </div>
+  );
+}
+
+function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDisponibilidad, servicios, setServicios, calendar, params, maestros }) {
   const [search, setSearch] = useState("");
   const [estadoFilter, setEstadoFilter] = useState("Activo");
   const [modal, setModal] = useState(false);
   const [editModal, setEditModal] = useState(null);
   const [detailModal, setDetailModal] = useState(null);
-  const [dispModal, setDispModal] = useState(null); // proveedor para configurar disponibilidad
+  const [dispModal, setDispModal] = useState(null);
+  const [asigModal, setAsigModal] = useState(null); // proveedor para ver sus servicios asignados
   const [form, setForm] = useState({ ...PROVEEDOR_EMPTY, codigo: `PRV-${String(Date.now()).slice(-5)}` });
-  const [editForm, setEditForm] = useState(PROVEEDOR_EMPTY);
+  const [editForm, setEditForm] = useState({ ...PROVEEDOR_EMPTY });
   const [formErrors, setFormErrors] = useState({});
   const [dispForm, setDispForm] = useState({ mes: "", porcentaje: 100 });
 
@@ -1491,7 +1539,8 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
   const handleAdd = async () => {
     const errs = validate(form);
     if (Object.keys(errs).length) { setFormErrors(errs); return; }
-    const res = await fetch("/api/proveedores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const body = { ...form, codigo: form.codigo.trim() || `PRV-${String(Date.now()).slice(-5)}` };
+    const res = await fetch("/api/proveedores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const saved = await res.json();
     if (saved.error) { alert(saved.error); return; }
     setProveedores(p => [...p, saved]);
@@ -1523,7 +1572,7 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
     const saved = await res.json();
     if (!saved.error) {
       setProveedores(prev => prev.map(x => x.id === p.id ? { ...x, estado: body.estado } : x));
-      if (detailModal?.id === p.id) setDetailModal({ ...detailModal, estado: body.estado });
+      if (detailModal?.id === p.id) setDetailModal(d => d ? { ...d, estado: body.estado } : null);
     }
   };
 
@@ -1533,7 +1582,6 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
     setEditModal(p); setDetailModal(null);
   };
 
-  // Disponibilidad del proveedor (usa su nombre como "colaborador" en la tabla disponibilidad)
   const dispDeProveedor = (nombre) => disponibilidad.filter(d => d.colaborador === nombre);
 
   const handleAddDisp = async () => {
@@ -1557,50 +1605,18 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
     setDisponibilidad(p => p.filter(d => d.id !== id));
   };
 
-  const ErrMsg = ({ f }) => formErrors[f] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[f]}</p> : null;
+  // Servicios asignados a este proveedor
+  const serviciosDeProveedor = (nombre) => (servicios || []).filter(s => s.proveedores && s.proveedores.includes(nombre));
 
-  const ProveedorForm = ({ f, setF }) => (
-    <div className="space-y-3">
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <Input label="Código (auto)" value={f.codigo} onChange={e => setF(x => ({ ...x, codigo: e.target.value }))} placeholder="PRV-XXXXX" />
-          <p className="text-xs text-slate-500 mt-0.5">Dejar vacío para generar automático</p>
-        </div>
-        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_PROVEEDOR} />
-      </div>
-      <div>
-        <Input label="Nombre / Razón social *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} />
-        <ErrMsg f="nombre" />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Input label="Cédula / Cédula jurídica" value={f.cedula} onChange={e => setF(x => ({ ...x, cedula: e.target.value }))} placeholder="1-XXXX-XXXX" />
-        <Select label="País" value={f.pais} onChange={e => setF(x => ({ ...x, pais: e.target.value }))} options={paises} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <div>
-          <Input label="Correo" value={f.correo} onChange={e => { setF(x => ({ ...x, correo: e.target.value })); setFormErrors(er => ({ ...er, correo: "" })); }} placeholder="proveedor@empresa.com" />
-          <ErrMsg f="correo" />
-        </div>
-        <div>
-          <Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()\-]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" />
-          <ErrMsg f="telefono" />
-        </div>
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-        <Select label="Especialidad / Rol" value={f.especialidad} onChange={e => setF(x => ({ ...x, especialidad: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...ROLES_DEFAULT.map(r => ({ value: r, label: r }))]} />
-        <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
-      </div>
-      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-        <Input label="Costo / hora" type="number" value={f.costoHora} onChange={e => setF(x => ({ ...x, costoHora: Number(e.target.value) }))} />
-        <Select label="Moneda" value={f.monedaCosto} onChange={e => setF(x => ({ ...x, monedaCosto: e.target.value }))} options={["USD","CRC","EUR"]} />
-        <Input label="Horas / día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: Number(e.target.value) }))} />
-      </div>
-      <div>
-        <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas</label>
-        <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" />
-      </div>
-    </div>
-  );
+  const handleToggleServicio = async (proveedor, servicio) => {
+    const provList = servicio.proveedores || [];
+    const yaAsignado = provList.includes(proveedor.nombre);
+    const nuevaLista = yaAsignado ? provList.filter(n => n !== proveedor.nombre) : [...provList, proveedor.nombre];
+    const body = { ...servicio, proveedores: nuevaLista };
+    const res = await fetch("/api/servicios", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    if (!saved.error) setServicios(p => p.map(s => s.id === servicio.id ? { ...s, proveedores: nuevaLista } : s));
+  };
 
   return (
     <div className="space-y-5">
@@ -1608,13 +1624,13 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
         <KPI title="Activos" value={proveedores.filter(p => p.estado === "Activo").length} color="purple" />
         <KPI title="Personas" value={proveedores.filter(p => p.tipo === "Persona física" && p.estado === "Activo").length} color="blue" />
         <KPI title="Empresas" value={proveedores.filter(p => p.tipo === "Empresa" && p.estado === "Activo").length} color="green" />
-        <KPI title="Con disponibilidad" value={new Set(disponibilidad.filter(d => d.esProveedor || proveedores.some(p => p.nombre === d.colaborador)).map(d => d.colaborador)).size} color="amber" />
+        <KPI title="Con disponibilidad" value={new Set(disponibilidad.filter(d => proveedores.some(p => p.nombre === d.colaborador)).map(d => d.colaborador)).size} color="amber" />
       </div>
 
       <div className="flex flex-wrap items-center gap-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor, código, rol..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
         <div className="flex gap-1">{["Activo","Inactivo","Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}</div>
-        <Btn size="sm" onClick={() => { setModal(true); setFormErrors({}); }} className="ml-auto">+ Nuevo proveedor</Btn>
+        <Btn size="sm" onClick={() => { setModal(true); setFormErrors({}); setForm({ ...PROVEEDOR_EMPTY, codigo: `PRV-${String(Date.now()).slice(-5)}` }); }} className="ml-auto">+ Nuevo proveedor</Btn>
       </div>
 
       <div className="overflow-x-auto rounded-xl border border-slate-700/50">
@@ -1634,7 +1650,8 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
                 <td className="px-3 py-3 whitespace-nowrap"><Badge color={p.estado === "Activo" ? "green" : "gray"}>{p.estado}</Badge></td>
                 <td className="px-3 py-3 whitespace-nowrap">
                   <div className="flex gap-1">
-                    <Btn variant="ghost" size="sm" onClick={() => { setDispModal(p); setDispForm({ mes: calDesc[0]?.mes || "", porcentaje: 100 }); }}>📅 Disp.</Btn>
+                    <Btn variant="ghost" size="sm" onClick={() => setAsigModal(p)}>📋</Btn>
+                    <Btn variant="ghost" size="sm" onClick={() => { setDispModal(p); setDispForm({ mes: calDesc[0]?.mes || "", porcentaje: 100 }); }}>📅</Btn>
                     <Btn variant="ghost" size="sm" onClick={() => openEdit(p)}>✏️</Btn>
                     <Btn variant={p.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(p)}>{p.estado === "Activo" ? "Off" : "On"}</Btn>
                   </div>
@@ -1648,13 +1665,13 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
 
       {/* Modal nuevo */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nuevo proveedor">
-        <ProveedorForm f={form} setF={setForm} />
+        <ProveedorFormFields f={form} setF={setForm} formErrors={formErrors} setFormErrors={setFormErrors} paises={paises} />
         <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
       </Modal>
 
       {/* Modal editar */}
       <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
-        <ProveedorForm f={editForm} setF={setEditForm} />
+        <ProveedorFormFields f={editForm} setF={setEditForm} formErrors={formErrors} setFormErrors={setFormErrors} paises={paises} />
         <div className="flex justify-between pt-4">
           <Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn>
           <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div>
@@ -1665,39 +1682,59 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
       <Modal open={!!detailModal} onClose={() => setDetailModal(null)} title={`${detailModal?.codigo || ""} — ${detailModal?.nombre}`}>
         {detailModal && (
           <div className="space-y-2">
-            {[
-              ["Tipo", detailModal.tipo],
-              ["Cédula", detailModal.cedula || "—"],
-              ["País", detailModal.pais || "—"],
-              ["Correo", detailModal.correo || "—"],
-              ["Teléfono", detailModal.telefono || "—"],
-              ["Especialidad", detailModal.especialidad || "—"],
-              ["Tribu", detailModal.tribu],
-              ["Costo / hora", detailModal.costoHora ? `${detailModal.monedaCosto} ${detailModal.costoHora}` : "—"],
-              ["Horas / día", detailModal.horasDia || 8],
-              ["Estado", detailModal.estado],
-            ].map(([k, v]) => (
-              <div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30">
-                <span className="text-xs text-slate-500">{k}</span>
-                <span className="text-sm text-white">{v}</span>
-              </div>
+            {[["Tipo",detailModal.tipo],["Cédula",detailModal.cedula||"—"],["País",detailModal.pais||"—"],["Correo",detailModal.correo||"—"],["Teléfono",detailModal.telefono||"—"],["Especialidad",detailModal.especialidad||"—"],["Tribu",detailModal.tribu],["Costo/hora",detailModal.costoHora?`${detailModal.monedaCosto} ${detailModal.costoHora}`:"—"],["Horas/día",detailModal.horasDia||8],["Estado",detailModal.estado]].map(([k,v]) => (
+              <div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30"><span className="text-xs text-slate-500">{k}</span><span className="text-sm text-white">{v}</span></div>
             ))}
             {detailModal.notas && <div className="bg-slate-800/40 rounded-lg p-3 mt-1"><p className="text-xs text-slate-400">{detailModal.notas}</p></div>}
-            <div className="flex justify-between pt-3">
-              <Btn variant="ghost" size="sm" onClick={() => { setDispModal(detailModal); setDetailModal(null); setDispForm({ mes: calDesc[0]?.mes || "", porcentaje: 100 }); }}>📅 Disponibilidad</Btn>
+            <div className="flex justify-between pt-3 flex-wrap gap-2">
+              <div className="flex gap-2">
+                <Btn variant="ghost" size="sm" onClick={() => { setAsigModal(detailModal); setDetailModal(null); }}>📋 Servicios</Btn>
+                <Btn variant="ghost" size="sm" onClick={() => { setDispModal(detailModal); setDetailModal(null); setDispForm({ mes: calDesc[0]?.mes||"", porcentaje: 100 }); }}>📅 Disp.</Btn>
+              </div>
               <Btn size="sm" onClick={() => openEdit(detailModal)}>✏️ Editar</Btn>
             </div>
           </div>
         )}
       </Modal>
 
-      {/* Modal disponibilidad del proveedor */}
+      {/* Modal servicios asignados */}
+      <Modal open={!!asigModal} onClose={() => setAsigModal(null)} title={`Servicios — ${asigModal?.nombre}`}>
+        {asigModal && (
+          <div className="space-y-3">
+            <p className="text-xs text-slate-400">Selecciona los servicios/proyectos donde participa este proveedor.</p>
+            <div className="space-y-1.5 max-h-72 overflow-y-auto">
+              {(servicios || []).filter(s => s.estado === "Activo").length === 0
+                ? <p className="text-slate-500 text-sm text-center py-4">No hay servicios activos</p>
+                : (servicios || []).filter(s => s.estado === "Activo").map(s => {
+                  const asignado = (s.proveedores || []).includes(asigModal.nombre);
+                  return (
+                    <div key={s.id} onClick={() => handleToggleServicio(asigModal, s)}
+                      className={`flex items-center justify-between rounded-lg px-3 py-2.5 border cursor-pointer transition-colors ${asignado ? "bg-purple-600/15 border-purple-500/40" : "bg-slate-800/40 border-slate-700/30 hover:bg-slate-800/70"}`}>
+                      <div>
+                        <p className="text-sm font-medium text-white">{s.nombre || s.name}</p>
+                        <div className="flex gap-2 mt-0.5">
+                          {s.tribu && <Pill label={s.tribu} color={s.tribu} />}
+                          {s.tipo && <span className="text-xs text-slate-500">{s.tipo}</span>}
+                        </div>
+                      </div>
+                      <div className={`w-5 h-5 rounded flex items-center justify-center flex-shrink-0 ${asignado ? "bg-purple-500 text-white text-xs" : "border border-slate-600"}`}>
+                        {asignado && "✓"}
+                      </div>
+                    </div>
+                  );
+                })
+              }
+            </div>
+            <p className="text-xs text-slate-500">{(servicios||[]).filter(s => (s.proveedores||[]).includes(asigModal.nombre)).length} servicio(s) asignado(s)</p>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal disponibilidad */}
       <Modal open={!!dispModal} onClose={() => setDispModal(null)} title={`Disponibilidad — ${dispModal?.nombre}`}>
         {dispModal && (
           <div className="space-y-4">
-            <p className="text-xs text-slate-400">Este proveedor aparecerá en los módulos de Consultoría (Utilización, Asignaciones, Forecast) como si fuera un colaborador de la tribu <span className="text-white font-semibold">{dispModal.tribu}</span>.</p>
-
-            {/* Disponibilidad configurada */}
+            <p className="text-xs text-slate-400">Este proveedor aparecerá en Utilización, Asignaciones y Forecast de la tribu <span className="text-white font-semibold">{dispModal.tribu}</span> con badge <span className="text-purple-400 font-semibold">Proveedor</span>.</p>
             <div className="space-y-1.5 max-h-40 overflow-y-auto">
               {dispDeProveedor(dispModal.nombre).length === 0
                 ? <p className="text-slate-500 text-sm text-center py-3">Sin disponibilidad configurada</p>
@@ -1713,23 +1750,17 @@ function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDis
                 ))
               }
             </div>
-
-            {/* Agregar disponibilidad */}
             <div className="border-t border-slate-700/50 pt-3 space-y-3">
               <p className="text-xs font-semibold text-slate-400 uppercase">Configurar mes</p>
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Mes</label>
-                  <select value={dispForm.mes} onChange={e => setDispForm(f => ({ ...f, mes: e.target.value }))}
-                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                  <select value={dispForm.mes} onChange={e => setDispForm(f => ({ ...f, mes: e.target.value }))} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
                     <option value="">Seleccionar...</option>
                     {calDesc.map(m => <option key={m.mes} value={m.mes}>{m.label}</option>)}
                   </select>
                 </div>
-                <div>
-                  <Input label="Disponibilidad %" type="number" value={dispForm.porcentaje}
-                    onChange={e => setDispForm(f => ({ ...f, porcentaje: Math.min(100, Math.max(0, Number(e.target.value))) }))} />
-                </div>
+                <Input label="Disponibilidad %" type="number" value={dispForm.porcentaje} onChange={e => setDispForm(f => ({ ...f, porcentaje: Math.min(100, Math.max(0, Number(e.target.value))) }))} />
               </div>
               <div className="flex justify-end"><Btn size="sm" onClick={handleAddDisp}>Guardar</Btn></div>
             </div>
@@ -4066,7 +4097,7 @@ export default function App() {
           {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
-          {view === "proveedores"   && <ModuloProveedores proveedores={proveedores} setProveedores={setProveedores} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} calendar={calendar} params={params} maestros={maestros} />}
+          {view === "proveedores"   && <ModuloProveedores proveedores={proveedores} setProveedores={setProveedores} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} servicios={servicios} setServicios={setServicios} calendar={calendar} params={params} maestros={maestros} />}
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} maestros={maestros} />}
           {/* parametros merged into configuracion */}
           {view === "clientes"      && <ModuloClientes clientes={clientes} setClientes={setClientes} contactos={contactos} setContactos={setContactos} maestros={maestros} />}
