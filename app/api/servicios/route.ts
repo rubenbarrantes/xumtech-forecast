@@ -1,39 +1,49 @@
-// app/api/servicios/route.ts
 import { NextResponse } from "next/server";
-import { neon } from "@neondatabase/serverless";
-
-const sql = neon(process.env.DATABASE_URL!);
+import sql from "@/lib/db";
 
 async function ensureTable() {
   await sql`
     CREATE TABLE IF NOT EXISTS servicios (
-      id                SERIAL PRIMARY KEY,
-      nombre            TEXT NOT NULL,
-      tipo              TEXT NOT NULL DEFAULT 'Soporte Evolutivo',
-      tribu             TEXT NOT NULL DEFAULT 'Dunamis',
-      po                TEXT NOT NULL DEFAULT '',
-      contrato_id       TEXT NOT NULL DEFAULT '',
-      jira_id           TEXT NOT NULL DEFAULT '',
-      tecnologia        TEXT NOT NULL DEFAULT '',
-      horas_limite      INTEGER NOT NULL DEFAULT 0,
+      id                 SERIAL PRIMARY KEY,
+      nombre             TEXT NOT NULL,
+      tipo               TEXT NOT NULL DEFAULT 'Soporte Evolutivo',
+      tribu              TEXT NOT NULL DEFAULT 'Dunamis',
+      po                 TEXT NOT NULL DEFAULT '',
+      contrato_id        TEXT NOT NULL DEFAULT '',
+      jira_id            TEXT NOT NULL DEFAULT '',
+      tecnologia         TEXT NOT NULL DEFAULT '',
+      horas_limite       INTEGER NOT NULL DEFAULT 0,
       personas_dedicadas INTEGER NOT NULL DEFAULT 1,
-      estado            TEXT NOT NULL DEFAULT 'Activo',
-      fecha_inicio      TEXT NOT NULL DEFAULT '',
-      fecha_vencimiento TEXT NOT NULL DEFAULT '',
-      renovable         BOOLEAN NOT NULL DEFAULT true,
-      created_at        TIMESTAMPTZ DEFAULT NOW()
+      estado             TEXT NOT NULL DEFAULT 'Activo',
+      fecha_inicio       TEXT NOT NULL DEFAULT '',
+      fecha_vencimiento  TEXT NOT NULL DEFAULT '',
+      renovable          BOOLEAN NOT NULL DEFAULT true,
+      proveedores        JSONB NOT NULL DEFAULT '[]',
+      created_at         TIMESTAMPTZ DEFAULT NOW()
     )
   `;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS personas_dedicadas INTEGER NOT NULL DEFAULT 1`;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS jira_id TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS tecnologia TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_inicio TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_vencimiento TEXT NOT NULL DEFAULT ''`;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS renovable BOOLEAN NOT NULL DEFAULT true`;
-  await sql`ALTER TABLE servicios ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'`;
+  // migrations for existing tables
+  const migs = [
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS personas_dedicadas INTEGER NOT NULL DEFAULT 1`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS jira_id TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS tecnologia TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_inicio TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS fecha_vencimiento TEXT NOT NULL DEFAULT ''`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS renovable BOOLEAN NOT NULL DEFAULT true`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS estado TEXT NOT NULL DEFAULT 'Activo'`,
+    `ALTER TABLE servicios ADD COLUMN IF NOT EXISTS proveedores JSONB NOT NULL DEFAULT '[]'`,
+  ];
+  for (const m of migs) { try { await sql.unsafe(m); } catch {} }
 }
 
 function mapRow(row: any) {
+  let proveedores: string[] = [];
+  try {
+    proveedores = Array.isArray(row.proveedores)
+      ? row.proveedores
+      : JSON.parse(row.proveedores || "[]");
+  } catch { proveedores = []; }
+
   return {
     id:                row.id,
     nombre:            row.nombre            ?? "",
@@ -49,6 +59,7 @@ function mapRow(row: any) {
     fechaInicio:       row.fecha_inicio      ?? "",
     fechaVencimiento:  row.fecha_vencimiento ?? "",
     renovable:         row.renovable         ?? true,
+    proveedores,
     roles:             {},
   };
 }
@@ -67,16 +78,17 @@ export async function POST(req: Request) {
   try {
     await ensureTable();
     const b = await req.json();
+    const proveedores = JSON.stringify(Array.isArray(b.proveedores) ? b.proveedores : []);
     const [row] = await sql`
       INSERT INTO servicios
         (nombre, tipo, tribu, po, contrato_id, jira_id, tecnologia,
-         horas_limite, personas_dedicadas, estado, fecha_inicio, fecha_vencimiento, renovable)
+         horas_limite, personas_dedicadas, estado, fecha_inicio, fecha_vencimiento, renovable, proveedores)
       VALUES
         (${b.nombre}, ${b.tipo}, ${b.tribu}, ${b.po ?? ""}, ${b.contratoId ?? ""},
          ${b.jiraId ?? ""}, ${b.tecnologia ?? ""},
          ${Number(b.horasLimite ?? 0)}, ${Number(b.personasDedicadas ?? 1)},
          ${b.estado ?? "Activo"}, ${b.fechaInicio ?? ""}, ${b.fechaVencimiento ?? ""},
-         ${b.renovable ?? true})
+         ${b.renovable ?? true}, ${proveedores})
       RETURNING *
     `;
     return NextResponse.json(mapRow(row));
@@ -90,6 +102,7 @@ export async function PUT(req: Request) {
     await ensureTable();
     const b = await req.json();
     if (!b.id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+    const proveedores = JSON.stringify(Array.isArray(b.proveedores) ? b.proveedores : []);
     const [row] = await sql`
       UPDATE servicios SET
         nombre             = ${b.nombre},
@@ -104,7 +117,8 @@ export async function PUT(req: Request) {
         estado             = ${b.estado ?? "Activo"},
         fecha_inicio       = ${b.fechaInicio ?? ""},
         fecha_vencimiento  = ${b.fechaVencimiento ?? ""},
-        renovable          = ${b.renovable ?? true}
+        renovable          = ${b.renovable ?? true},
+        proveedores        = ${proveedores}
       WHERE id = ${b.id}
       RETURNING *
     `;

@@ -3947,7 +3947,7 @@ export default function App() {
       fetch("/api/proveedores").then(r => r.json()),
     ]).then(([cols, servs, asigs, aus, cal, par, disp, clis, conts, contrs, maes, provs]) => {
       if (Array.isArray(cols) && cols.length > 0) setColaboradores(cols);
-      if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
+      if (Array.isArray(servs)) setServicios(servs);
       if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
       if (Array.isArray(aus) && aus.length > 0) setAusencias(aus);
       if (Array.isArray(cal) && cal.length > 0) setCalendar(cal.filter(m => m.mes >= "2026-01"));
