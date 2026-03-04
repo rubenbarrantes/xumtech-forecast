@@ -1527,17 +1527,17 @@ function ModuloClientes({ clientes, setClientes, contactos, setContactos, maestr
         <Select label="Tamaño (empleados)" value={f.tamano} onChange={e => setF(x => ({ ...x, tamano: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...TAMANIOS_EMPRESA.map(t => ({ value: t, label: t }))]} />
       </div>
       <Input label="Sitio web" value={f.sitioWeb} onChange={e => setF(x => ({ ...x, sitioWeb: e.target.value }))} placeholder="https://www.empresa.com" />
-      {f.pais === "Costa Rica" && (
-        <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
+      <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
           <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dirección</p>
-          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-            <Select label="Provincia" value={f.provincia} onChange={e => setF(x => ({ ...x, provincia: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...PROVINCIAS_CR.map(p => ({ value: p, label: p }))]} />
-            <Input label="Cantón" value={f.canton} onChange={e => setF(x => ({ ...x, canton: e.target.value }))} placeholder="San José" />
-            <Input label="Distrito" value={f.distrito} onChange={e => setF(x => ({ ...x, distrito: e.target.value }))} placeholder="Carmen" />
-          </div>
-          <Input label="Detalle" value={f.direccionDetalle} onChange={e => setF(x => ({ ...x, direccionDetalle: e.target.value }))} placeholder="Edificio Torre Mercedes, piso 5" />
+          {f.pais === "Costa Rica" && (
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              <Select label="Provincia" value={f.provincia} onChange={e => setF(x => ({ ...x, provincia: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...PROVINCIAS_CR.map(p => ({ value: p, label: p }))]} />
+              <Input label="Cantón" value={f.canton} onChange={e => setF(x => ({ ...x, canton: e.target.value }))} placeholder="San José" />
+              <Input label="Distrito" value={f.distrito} onChange={e => setF(x => ({ ...x, distrito: e.target.value }))} placeholder="Carmen" />
+            </div>
+          )}
+          <Input label="Detalle de dirección" value={f.direccionDetalle} onChange={e => setF(x => ({ ...x, direccionDetalle: e.target.value }))} placeholder="Edificio Torre Mercedes, piso 5" />
         </div>
-      )}
       <div>
         <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas internas</label>
         <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} placeholder="Observaciones..." className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
