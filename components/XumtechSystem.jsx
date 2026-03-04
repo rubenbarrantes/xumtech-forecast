@@ -318,14 +318,14 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         {["Todas", ...TRIBUS_DEFAULT].map(t => {
           const count = colaboradores.filter(c => (t === "Todas" ? true : c.tribu === t) && c.status === "Activo").length;
           return <KPI key={t} title={t === "Todas" ? "Total activos" : t} value={count} color={t === "Todas" ? "blue" : "green"} />;
         })}
       </div>
 
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar colaborador..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
         <div className="flex gap-1">
           {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
@@ -336,7 +336,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
         <Btn variant="primary" size="sm" onClick={() => setModalOpen(true)} className="ml-auto">+ Agregar colaborador</Btn>
       </div>
 
-      <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/80">
             <tr>{["Colaborador", "Tribu", "Rol Principal", "Horas/día", "Estado", "Días ausentes", "Acciones"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -380,11 +380,11 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
         <div className="space-y-4">
           <Input label="Nombre completo" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} placeholder="Nombre Apellido" />
           <Input label="Email" value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))} placeholder="correo@xumtech.com" />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select label="Rol principal" value={form.rolPrincipal} onChange={e => setForm(f => ({ ...f, rolPrincipal: e.target.value }))} options={ROLES_DEFAULT} />
             <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
           </div>
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select label="Status" value={form.status} onChange={e => setForm(f => ({ ...f, status: e.target.value }))} options={["Activo", "Inactivo"]} />
             <Input label="Horas por día" type="number" value={form.horasDia} onChange={e => setForm(f => ({ ...f, horasDia: e.target.value }))} />
           </div>
@@ -412,7 +412,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-700/40 overflow-hidden">
+            <div className="overflow-x-auto rounded-xl border border-slate-700/40 overflow-hidden">
               <div className="px-4 py-2.5 bg-slate-800/60 flex items-center justify-between">
                 <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Días ausentes registrados</span>
                 <div className="flex items-center gap-3">
@@ -459,7 +459,7 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
             options={calDesc.map(c => ({ value: c.mes, label: `${c.label} (${c.diasLaborales}d lab.)` }))}
           />
           <Input label="Fecha específica (opcional)" type="date" value={ausenciaForm.fecha} onChange={e => setAusenciaForm(f => ({ ...f, fecha: e.target.value }))} />
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Input label="Días a descontar" type="number" min="1" value={ausenciaForm.dias} onChange={e => setAusenciaForm(f => ({ ...f, dias: e.target.value }))} />
             <Select label="Tipo" value={ausenciaForm.tipo} onChange={e => setAusenciaForm(f => ({ ...f, tipo: e.target.value }))} options={["Vacaciones", "Incapacidad", "Día libre", "Permiso", "Otro"]} />
           </div>
@@ -587,7 +587,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
         <div className="space-y-6">
           <div className="rounded-xl border border-slate-700/50 p-5 space-y-4">
             <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Utilización</p>
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div>
                 <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Objetivo de utilización (%)</label>
                 <input type="number" min="50" max="120" value={params.utilObjetivo}
@@ -706,7 +706,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             <p className="text-xs text-slate-500">Configura los días laborales reales por mes. Los cambios se guardan automáticamente.</p>
             <Btn size="sm" onClick={() => setCalModal(true)}>+ Agregar mes</Btn>
           </div>
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Mes", "Feriados", "Días laborales netos", "Dif. vs 20 días", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -744,11 +744,11 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
           <Modal open={calModal} onClose={() => setCalModal(false)} title="Agregar mes al calendario">
             <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Mes (YYYY-MM)" value={calForm.mes} onChange={e => setCalForm(f => ({ ...f, mes: e.target.value }))} placeholder="2026-07" />
                 <Input label="Etiqueta" value={calForm.label} onChange={e => setCalForm(f => ({ ...f, label: e.target.value }))} placeholder="Jul 2026" />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Input label="Días laborales" type="number" min="1" max="23" value={calForm.diasLaborales} onChange={e => setCalForm(f => ({ ...f, diasLaborales: e.target.value }))} />
                 <Input label="Feriados" type="number" min="0" max="10" value={calForm.feriados} onChange={e => setCalForm(f => ({ ...f, feriados: e.target.value }))} />
               </div>
@@ -785,7 +785,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
             });
           })}
 
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Colaborador", "Rol", "Tribu", "Mes", "% Asignado", "Total persona-mes", ""].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -819,11 +819,11 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
           <Modal open={dispModal} onClose={() => setDispModal(false)} title="Nueva asignación de disponibilidad">
             <div className="space-y-4">
               <Select label="Colaborador" value={dispForm.colaborador} onChange={e => setDispForm(f => ({ ...f, colaborador: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...activos.map(n => ({ value: n, label: n }))]} />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Select label="Rol" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
                 <Select label="Tribu" value={dispForm.tribu} onChange={e => setDispForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Select label="Mes" value={dispForm.mes} onChange={e => setDispForm(f => ({ ...f, mes: e.target.value }))} options={calendar.map(c => ({ value: c.mes, label: c.label }))} />
                 <Input label="% Asignado" type="number" min="1" max="100" value={dispForm.porcentaje} onChange={e => setDispForm(f => ({ ...f, porcentaje: e.target.value }))} />
               </div>
@@ -846,7 +846,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
       {tab === "neto" && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">Calculado automáticamente: % Bruto × (Días reales persona / Días calendario mes). Solo lectura.</p>
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Colaborador", "Rol", "Tribu", "Mes", "% Bruto", "Días cal.", "Días reales", "% Neto"].map(h => <th key={h} className="text-left px-4 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -1006,15 +1006,15 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
   const ServicioForm = ({ f, setF, isEdit }) => (
     <div className="space-y-4">
       <Input label="Nombre" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="Nombre del cliente o proyecto" />
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
         <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input label="ID Contrato" value={f.contratoId} onChange={e => setF(x => ({ ...x, contratoId: e.target.value }))} placeholder="CN-00xxx" />
         <Input label="ID Jira" value={f.jiraId} onChange={e => setF(x => ({ ...x, jiraId: e.target.value }))} placeholder="JIRA-xxx" />
       </div>
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Select label="PO / Responsable" value={f.po} onChange={e => setF(x => ({ ...x, po: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]} />
         <Input label="Tecnología" value={f.tecnologia} onChange={e => setF(x => ({ ...x, tecnologia: e.target.value }))} placeholder="Salesforce, Oracle, Adobe..." />
       </div>
@@ -1022,7 +1022,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         ? <Input label="Personas dedicadas" type="number" min="1" value={f.personasDedicadas} onChange={e => setF(x => ({ ...x, personasDedicadas: e.target.value }))} />
         : <Input label={tieneHorasLimite(f.tipo) ? "Horas límite / mes" : "Horas totales estimadas"} type="number" value={f.horasLimite} onChange={e => setF(x => ({ ...x, horasLimite: e.target.value }))} />
       }
-      <div className="grid grid-cols-2 gap-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
         <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
       </div>
@@ -1036,11 +1036,11 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
   return (
     <div className="space-y-5">
-      <div className="grid grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
         <KPI title="Total activos" value={servicios.filter(s => s.estado === "Activo").length} color="blue" />
         {TRIBUS_DEFAULT.map(t => <KPI key={t} title={t} value={servicios.filter(s => s.tribu === t && s.estado === "Activo").length} color="green" />)}
       </div>
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar servicio o contrato..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-56" />
         <div className="flex gap-1">
           {["Todas", ...TRIBUS_DEFAULT].map(t => <button key={t} onClick={() => setTribFilter(t)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${tribFilter === t ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{t}</button>)}
@@ -1050,7 +1050,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
         </div>
         <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo servicio</Btn>
       </div>
-      <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
         <table className="w-full text-sm">
           <thead className="bg-slate-800/80">
             <tr>{["Contrato", "Servicio/Proyecto", "Tipo", "Tribu", "PO", "Tecnología", "Límite", "Vigencia", "Estado", ""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase tracking-wider">{h}</th>)}</tr>
@@ -1101,7 +1101,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
       </Modal>
       <Modal open={!!rolesModal} onClose={() => setRolesModal(null)} title={`Roles — ${servicios.find(s => s.id === rolesModal)?.nombre}`}>
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             {ROLES_DEFAULT.map(rol => (
               <label key={rol} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${rolesForm[rol] ? "border-blue-500/50 bg-blue-500/10" : "border-slate-700/50 bg-slate-800/30"}`}>
                 <input type="checkbox" checked={!!rolesForm[rol]} onChange={e => setRolesForm(f => ({ ...f, [rol]: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
@@ -1173,7 +1173,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
           <h2 className="text-xl font-bold text-white">{tribu}</h2>
           <p className={`text-2xl font-bold ${semaforo}`}>{pctGlobal}% <span className="text-sm font-normal text-slate-400">utilización {mesSel}</span></p>
         </div>
-        <div className="flex flex-wrap gap-2">
+        <div className="flex gap-2 overflow-x-auto pb-1 xt-month-bar">
           {calendar.map(c => (
             <button key={c.mes} onClick={() => setMesSel(c.mes)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${mesSel === c.mes ? "bg-blue-600 text-white" : "bg-slate-800 text-slate-400 border border-slate-700 hover:bg-slate-700"}`}>{c.label}</button>
           ))}
@@ -1181,7 +1181,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
       </div>
 
       {/* Tabs */}
-      <div className="flex gap-1 border-b border-slate-700/50 pb-0">
+      <div className="flex gap-1 border-b border-slate-700/50 pb-0 overflow-x-auto">
         {tabs.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className={`px-4 py-2.5 text-sm font-medium rounded-t-lg transition-colors ${tab === t.id ? "bg-slate-800 text-white border border-slate-700/50 border-b-slate-800" : "text-slate-400 hover:text-slate-300"}`}>{t.label}</button>
         ))}
@@ -1226,7 +1226,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
       {/* Tab: Asignaciones activas */}
       {tab === "asignaciones" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <KPI title="Asignaciones" value={tribAsigs.length} color="blue" />
             <KPI title="Horas totales" value={`${tribAsigs.reduce((s, a) => s + (a.horas || 0), 0)}h`} color="green" />
             <KPI title="Servicios cubiertos" value={new Set(tribAsigs.map(a => a.servicioId || a.servicio_id)).size} color="purple" />
@@ -1234,7 +1234,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
           {tribAsigs.length === 0
             ? <p className="text-slate-500 text-sm text-center py-8">No hay asignaciones registradas para {tribu} en {mesSel}.</p>
             : (
-              <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+              <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
                 <table className="w-full text-sm">
                   <thead className="bg-slate-800/80"><tr>{["Rol","Colaborador","Servicio","Horas"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr></thead>
                   <tbody>
@@ -1260,13 +1260,13 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
       {/* Tab: Capacidad vs Asignado */}
       {tab === "capacidad" && (
         <div className="space-y-4">
-          <div className="grid grid-cols-3 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
             <KPI title="Disponible" value={`${totalDisp}h`} color="blue" />
             <KPI title="Asignado" value={`${totalAsig}h`} color={pctGlobal >= (params?.utilObjetivo || 75) ? "green" : "amber"} />
             <KPI title="Libre" value={`${totalDisp - totalAsig}h`} color={totalDisp - totalAsig < 0 ? "red" : "green"} />
           </div>
           {rolesData.length > 0 && (
-            <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+            <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
               <table className="w-full text-sm">
                 <thead className="bg-slate-800/80"><tr>{["Rol","Personas","Disponible","Asignado","Libre","Utilización"].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase">{h}</th>)}</tr></thead>
                 <tbody>
@@ -1405,7 +1405,7 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
                 <span className="w-2 h-2 rounded-full" style={{ background: TRIBU_COLORS[t] }}></span>
                 <span className="font-semibold text-white">{t}</span>
               </div>
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <div><p className="text-2xl font-bold font-mono" style={{ color: TRIBU_COLORS[t] }}>{cnt}</p><p className="text-xs text-slate-500">colaboradores</p></div>
                 <div><p className="text-2xl font-bold font-mono text-slate-300">{srv}</p><p className="text-xs text-slate-500">servicios</p></div>
               </div>
@@ -1583,7 +1583,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       </div>
 
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1 flex-wrap">
           {mesesDisponibles.map(c => (
             <button key={c.mes} onClick={() => setMesFilter(c.mes)}
@@ -1652,7 +1652,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       {/* Modal nueva asignación */}
       <Modal open={modal} onClose={() => setModal(false)} title="Nueva asignación de horas">
         <div className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value, colaborador: "" }))} options={TRIBUS_DEFAULT} />
             <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
           </div>
@@ -1667,7 +1667,7 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
             />
           )}
 
-          <div className="grid grid-cols-2 gap-3">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <Select label="Mes" value={form.mes} onChange={e => setForm(f => ({ ...f, mes: e.target.value }))}
               options={mesesDisponibles.map(c => ({ value: c.mes, label: c.label }))} />
             <Input label="Horas" type="number" min="1" value={form.horas} onChange={e => setForm(f => ({ ...f, horas: +e.target.value }))} />
@@ -1853,7 +1853,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
   return (
     <div className="space-y-6">
       {/* Controls */}
-      <div className="flex flex-wrap items-center gap-3">
+      <div className="flex flex-wrap items-center gap-2">
         <div className="flex gap-1">
           {["Todas", ...TRIBUS_DEFAULT].map(t => (
             <button key={t} onClick={() => setTribFocus(t)}
@@ -2001,7 +2001,7 @@ function ModuloForecast({ servicios, colaboradores, disponibilidad, ausencias, c
       {porVencer.length > 0 && (
         <div>
           <SectionHeader>Contratos que vencen en el horizonte seleccionado</SectionHeader>
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>{["Contrato", "Servicio", "Tribu", "Vencimiento", "¿Renovable?", "Impacto (personas)"].map(h => (
@@ -2205,7 +2205,7 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 
             <div className="space-y-3">
               <Input label="Nombre del proyecto" value={form.nombre} onChange={e => setForm(f => ({ ...f, nombre: e.target.value }))} />
-              <div className="grid grid-cols-2 gap-3">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
                 <Select label="Tipo" value={form.tipo} onChange={e => setForm(f => ({ ...f, tipo: e.target.value }))} options={TIPOS_SERVICIO} />
               </div>
@@ -2332,7 +2332,7 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
           </div>
 
           {/* Tabla de impacto mes a mes */}
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>
@@ -2670,7 +2670,7 @@ function ModuloAlertas({ alertas, onNavigate }) {
           <SectionHeader>
             <span className="text-blue-400">◫ Contratos vencen en menos de 60 días</span>
           </SectionHeader>
-          <div className="rounded-xl border border-slate-700/50 overflow-hidden">
+          <div className="overflow-x-auto rounded-xl border border-slate-700/50 overflow-hidden">
             <table className="w-full text-sm">
               <thead className="bg-slate-800/80">
                 <tr>
@@ -2762,9 +2762,29 @@ const GLOBAL_CSS = `
     .xt-form-2col { grid-template-columns: 1fr !important; }
     .xt-padding { padding: 16px !important; }
     .xt-header-padding { padding: 12px 16px !important; }
+    /* Tables scroll horizontally */
+    table { min-width: 500px; }
+    .xt-table-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    /* Stat grids collapse */
+    .xt-stat-grid { grid-template-columns: 1fr 1fr !important; }
+    /* Hide less important table columns on mobile */
+    .xt-col-hide { display: none !important; }
+    /* Month pill bars scroll */
+    .xt-month-bar { overflow-x: auto; flex-wrap: nowrap !important; padding-bottom: 4px; }
+    /* Full width buttons */
+    .xt-btn-mobile-full { width: 100%; justify-content: center; }
+    /* Font size reduction */
+    .xt-main { font-size: 13px; }
   }
   @media (max-width: 768px) {
     .xt-forecast-controls { flex-direction: column; align-items: flex-start !important; }
+    /* Modals full width */
+    .xt-modal-inner { max-width: 100% !important; margin: 0 !important; border-radius: 0 !important; min-height: 100vh; }
+    /* Header compact */
+    .xt-header { padding: 10px 16px !important; }
+    /* Action bars wrap */
+    .xt-action-bar { flex-wrap: wrap; gap: 8px !important; }
+    .xt-action-bar > * { flex-shrink: 0; }
   }
 `;
 
