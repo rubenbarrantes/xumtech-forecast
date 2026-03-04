@@ -503,7 +503,7 @@ function AddItemInline({ placeholder, onAdd }) {
 
 // ─── MÓDULO: PARÁMETROS ───────────────────────────────────────────────────────
 
-function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams }) {
+function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros }) {
 
   const [tab, setTab] = useState("calendario");
   const [dispForm, setDispForm] = useState({ colaborador: "", rol: "Técnico", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 });
@@ -595,7 +595,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
   return (
     <div className="space-y-5">
       <div className="flex gap-1 border-b border-slate-700/50 pb-1 flex-wrap">
-        {[["calendario", "📅 Calendario"], ["parametros", "⚙️ Parámetros"], ["disponibilidad", "📊 Disponibilidad Bruta"], ["neto", "📈 Disponibilidad Neta"]].map(([id, label]) => (
+        {[["calendario", "📅 Calendario"], ["parametros", "⚙️ Parámetros"], ["disponibilidad", "📊 Disponibilidad Bruta"], ["neto", "📈 Disponibilidad Neta"], ["maestros", "📋 Maestros"]].map(([id, label]) => (
           <button key={id} onClick={() => setTab(id)} className={`px-4 py-2 rounded-t-lg text-sm font-medium transition-colors ${tab === id ? "bg-slate-800 text-white border border-slate-700 border-b-transparent" : "text-slate-400 hover:text-white"}`}>{label}</button>
         ))}
       </div>
@@ -925,6 +925,8 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
       )}
 
       {/* TAB: NETO CALCULADO */}
+      {tab === "maestros" && <TabMaestros maestros={maestros} setMaestros={setMaestros} />}
+
       {tab === "neto" && (
         <div className="space-y-4">
           <p className="text-xs text-slate-500">Calculado automáticamente: % Bruto × (Días reales persona / Días calendario mes). Solo lectura.</p>
@@ -1414,6 +1416,380 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
           }
         </div>
       )}
+    </div>
+  );
+}
+
+
+// ─── MAESTROS: PAÍSES, INDUSTRIAS, TIPOS CONTRATO ────────────────────────────
+
+const PAISES_DEFAULT = ["Costa Rica","Guatemala","El Salvador","Honduras","Nicaragua","Panamá","México","Colombia","Estados Unidos","España","Otro"];
+const PROVINCIAS_CR = ["San José","Alajuela","Cartago","Heredia","Guanacaste","Puntarenas","Limón"];
+const INDUSTRIAS_DEFAULT = ["Tecnología","Retail / Comercio","Banca y Finanzas","Salud","Manufactura","Logística","Educación","Gobierno","Telecomunicaciones","Seguros","Agroindustria","Otro"];
+const TIPOS_CONTRATO_DEFAULT = ["Tiempo y Materiales","Precio Fijo","Retención Mensual","Bolsa de Horas","Talento Dedicado","Proyecto Llave en Mano","Otro"];
+const TAMANIOS_EMPRESA = ["1-10","11-50","51-200","201-500","501-1000","1000+"];
+
+// ─── MÓDULO: CLIENTES ─────────────────────────────────────────────────────────
+
+const CLIENTE_EMPTY = {
+  nombre: "", razonSocial: "", cedulaJuridica: "", pais: "Costa Rica",
+  industria: "", tamano: "", sitioWeb: "", notas: "",
+  provincia: "", canton: "", distrito: "", direccionDetalle: "",
+  estado: "Activo",
+};
+
+function ModuloClientes({ clientes, setClientes, contactos, setContactos, maestros }) {
+  const [search, setSearch] = useState("");
+  const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
+  const [form, setForm] = useState(CLIENTE_EMPTY);
+  const [editForm, setEditForm] = useState(CLIENTE_EMPTY);
+  const [detail, setDetail] = useState(null);
+  const [contactoModal, setContactoModal] = useState(null);
+  const [contactoForm, setContactoForm] = useState({ nombre: "", cargo: "", email: "", telefono: "", clienteId: "" });
+  const [estadoFilter, setEstadoFilter] = useState("Activo");
+
+  const paises = maestros?.paises?.length ? maestros.paises : PAISES_DEFAULT;
+  const industrias = maestros?.industrias?.length ? maestros.industrias : INDUSTRIAS_DEFAULT;
+  const filtered = clientes.filter(c =>
+    (estadoFilter === "Todos" || c.estado === estadoFilter) &&
+    (c.nombre.toLowerCase().includes(search.toLowerCase()) ||
+     (c.razonSocial||"").toLowerCase().includes(search.toLowerCase()) ||
+     (c.cedulaJuridica||"").includes(search))
+  );
+  const contactosPorCliente = (id) => contactos.filter(c => c.clienteId === id || c.cliente_id === id);
+
+  const handleAdd = async () => {
+    if (!form.nombre.trim()) return;
+    const res = await fetch("/api/clientes", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setClientes(p => [...p, saved]);
+    setModal(false); setForm(CLIENTE_EMPTY);
+  };
+
+  const handleEdit = async () => {
+    if (!editForm.nombre.trim()) return;
+    const res = await fetch("/api/clientes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editModal.id, ...editForm }) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setClientes(p => p.map(c => c.id === editModal.id ? saved : c));
+    setEditModal(null);
+  };
+
+  const handleDelete = async (cl) => {
+    if (!confirm(`¿Eliminar "${cl.nombre}"? Se eliminarán también sus contactos.`)) return;
+    await fetch("/api/clientes", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: cl.id }) });
+    setClientes(p => p.filter(x => x.id !== cl.id));
+    setContactos(p => p.filter(x => x.clienteId !== cl.id && x.cliente_id !== cl.id));
+    setDetail(null); setEditModal(null);
+  };
+
+  const handleToggleEstado = async (cl) => {
+    const body = { ...cl, estado: cl.estado === "Activo" ? "Inactivo" : "Activo" };
+    const res = await fetch("/api/clientes", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    if (!saved.error) setClientes(p => p.map(x => x.id === cl.id ? { ...x, estado: body.estado } : x));
+  };
+
+  const openEdit = (cl) => {
+    setEditForm({ nombre: cl.nombre, razonSocial: cl.razonSocial||"", cedulaJuridica: cl.cedulaJuridica||"", pais: cl.pais||"Costa Rica", industria: cl.industria||"", tamano: cl.tamano||"", sitioWeb: cl.sitioWeb||"", notas: cl.notas||"", provincia: cl.provincia||"", canton: cl.canton||"", distrito: cl.distrito||"", direccionDetalle: cl.direccionDetalle||"", estado: cl.estado||"Activo" });
+    setEditModal(cl); setDetail(null);
+  };
+
+  const handleAddContacto = async () => {
+    if (!contactoForm.nombre.trim()) return;
+    const body = { ...contactoForm, clienteId: contactoModal };
+    const res = await fetch("/api/contactos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setContactos(p => [...p, saved]);
+    setContactoForm({ nombre: "", cargo: "", email: "", telefono: "", clienteId: "" });
+  };
+
+  const handleDeleteContacto = async (id) => {
+    await fetch("/api/contactos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setContactos(p => p.filter(x => x.id !== id));
+  };
+
+  const ClienteForm = ({ f, setF }) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Nombre comercial *" value={f.nombre} onChange={e => setF(x => ({ ...x, nombre: e.target.value }))} placeholder="ACME Corp" />
+        <Input label="Razón social" value={f.razonSocial} onChange={e => setF(x => ({ ...x, razonSocial: e.target.value }))} placeholder="ACME Sociedad Anónima" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Cédula jurídica" value={f.cedulaJuridica} onChange={e => setF(x => ({ ...x, cedulaJuridica: e.target.value }))} placeholder="3-101-XXXXXX" />
+        <Select label="País" value={f.pais} onChange={e => setF(x => ({ ...x, pais: e.target.value }))} options={paises} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Industria" value={f.industria} onChange={e => setF(x => ({ ...x, industria: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...industrias.map(i => ({ value: i, label: i }))]} />
+        <Select label="Tamaño (empleados)" value={f.tamano} onChange={e => setF(x => ({ ...x, tamano: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...TAMANIOS_EMPRESA.map(t => ({ value: t, label: t }))]} />
+      </div>
+      <Input label="Sitio web" value={f.sitioWeb} onChange={e => setF(x => ({ ...x, sitioWeb: e.target.value }))} placeholder="https://www.empresa.com" />
+      {f.pais === "Costa Rica" && (
+        <div className="border border-slate-700/50 rounded-xl p-3 space-y-3">
+          <p className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Dirección</p>
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+            <Select label="Provincia" value={f.provincia} onChange={e => setF(x => ({ ...x, provincia: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...PROVINCIAS_CR.map(p => ({ value: p, label: p }))]} />
+            <Input label="Cantón" value={f.canton} onChange={e => setF(x => ({ ...x, canton: e.target.value }))} placeholder="San José" />
+            <Input label="Distrito" value={f.distrito} onChange={e => setF(x => ({ ...x, distrito: e.target.value }))} placeholder="Carmen" />
+          </div>
+          <Input label="Detalle" value={f.direccionDetalle} onChange={e => setF(x => ({ ...x, direccionDetalle: e.target.value }))} placeholder="Edificio Torre Mercedes, piso 5" />
+        </div>
+      )}
+      <div>
+        <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas internas</label>
+        <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} placeholder="Observaciones..." className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 resize-none" />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI title="Activos" value={clientes.filter(c => c.estado === "Activo").length} color="blue" />
+        <KPI title="Contactos" value={contactos.length} color="green" />
+        <KPI title="Inactivos" value={clientes.filter(c => c.estado === "Inactivo").length} color="gray" />
+        <KPI title="Sin contacto" value={clientes.filter(c => contactosPorCliente(c.id).length === 0).length} color="amber" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar cliente o cédula..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
+        <div className="flex gap-1">{["Activo","Inactivo","Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}</div>
+        <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo cliente</Btn>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table className="w-full text-sm min-w-[640px]">
+          <thead className="bg-slate-800/80"><tr>{["Cliente","Cédula jurídica","País","Industria","Tamaño","Contactos","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody>
+            {filtered.map(cl => (
+              <tr key={cl.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${cl.estado === "Inactivo" ? "opacity-50" : ""}`}>
+                <td className="px-3 py-3"><p className="text-white font-medium">{cl.nombre}</p>{cl.razonSocial && <p className="text-xs text-slate-500">{cl.razonSocial}</p>}</td>
+                <td className="px-3 py-3 text-slate-400 font-mono text-xs">{cl.cedulaJuridica || "—"}</td>
+                <td className="px-3 py-3 text-slate-300 text-xs whitespace-nowrap">{cl.pais || "—"}</td>
+                <td className="px-3 py-3 text-slate-300 text-xs whitespace-nowrap">{cl.industria || "—"}</td>
+                <td className="px-3 py-3 text-slate-400 text-xs">{cl.tamano || "—"}</td>
+                <td className="px-3 py-3"><button onClick={() => { setContactoModal(cl.id); setDetail(null); }} className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300"><span className="font-mono font-bold">{contactosPorCliente(cl.id).length}</span><span className="text-slate-500 ml-1">ver</span></button></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color={cl.estado === "Activo" ? "green" : "gray"}>{cl.estado}</Badge></td>
+                <td className="px-3 py-3 whitespace-nowrap"><div className="flex gap-1"><Btn variant="ghost" size="sm" onClick={() => setDetail(cl)}>Ver</Btn><Btn variant="ghost" size="sm" onClick={() => openEdit(cl)}>✏️</Btn><Btn variant={cl.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(cl)}>{cl.estado === "Activo" ? "Off" : "On"}</Btn></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron clientes</p>}
+      </div>
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo cliente"><ClienteForm f={form} setF={setForm} /><div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div></Modal>
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}><ClienteForm f={editForm} setF={setEditForm} /><div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div></Modal>
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={detail?.nombre}>
+        {detail && (<div className="space-y-2">{[["Razón social",detail.razonSocial||"—"],["Cédula jurídica",detail.cedulaJuridica||"—"],["País",detail.pais||"—"],["Industria",detail.industria||"—"],["Tamaño",detail.tamano||"—"],["Sitio web",detail.sitioWeb||"—"],["Provincia",detail.provincia||"—"],["Cantón",detail.canton||"—"],["Distrito",detail.distrito||"—"],["Dirección",detail.direccionDetalle||"—"]].map(([k,v]) => (<div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30"><span className="text-xs text-slate-500">{k}</span><span className="text-sm text-white text-right max-w-[60%]">{v}</span></div>))}{detail.notas && <div className="bg-slate-800/40 rounded-lg p-3 mt-2"><p className="text-xs text-slate-400">{detail.notas}</p></div>}<div className="flex justify-between pt-3"><Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" size="sm" onClick={() => { setContactoModal(detail.id); setDetail(null); }}>Contactos</Btn><Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn></div></div></div>)}
+      </Modal>
+      <Modal open={!!contactoModal} onClose={() => setContactoModal(null)} title={`Contactos — ${clientes.find(cl => cl.id === contactoModal)?.nombre}`}>
+        <div className="space-y-4">
+          <div className="space-y-2">{contactosPorCliente(contactoModal).length === 0 ? <p className="text-slate-500 text-sm text-center py-4">Sin contactos registrados</p> : contactosPorCliente(contactoModal).map(ct => (<div key={ct.id} className="bg-slate-800/40 rounded-lg p-3 flex items-start justify-between"><div><p className="text-sm font-medium text-white">{ct.nombre}</p><p className="text-xs text-slate-400">{ct.cargo}</p><div className="flex gap-3 mt-1">{ct.email && <a href={`mailto:${ct.email}`} className="text-xs text-blue-400 hover:underline">{ct.email}</a>}{ct.telefono && <span className="text-xs text-slate-400">{ct.telefono}</span>}</div></div><button onClick={() => handleDeleteContacto(ct.id)} className="text-red-400 hover:text-red-300 text-xs ml-3">✕</button></div>))}</div>
+          <div className="border-t border-slate-700/50 pt-3 space-y-3">
+            <p className="text-xs font-semibold text-slate-400 uppercase">Agregar contacto</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Input label="Nombre *" value={contactoForm.nombre} onChange={e => setContactoForm(f => ({ ...f, nombre: e.target.value }))} />
+              <Input label="Cargo" value={contactoForm.cargo} onChange={e => setContactoForm(f => ({ ...f, cargo: e.target.value }))} />
+              <Input label="Email" value={contactoForm.email} onChange={e => setContactoForm(f => ({ ...f, email: e.target.value }))} />
+              <Input label="Teléfono" value={contactoForm.telefono} onChange={e => setContactoForm(f => ({ ...f, telefono: e.target.value }))} />
+            </div>
+            <div className="flex justify-end"><Btn size="sm" onClick={handleAddContacto}>+ Agregar</Btn></div>
+          </div>
+        </div>
+      </Modal>
+    </div>
+  );
+}
+
+// ─── MÓDULO: CONTRATOS ────────────────────────────────────────────────────────
+
+const CONTRATO_EMPTY = {
+  numero: "", clienteId: "", tipo: "Retención Mensual", moneda: "USD",
+  montoMensual: 0, montoTotal: 0, tribu: "Dunamis", po: "",
+  fechaInicio: "", fechaVencimiento: "", renovacionAutomatica: false,
+  estado: "Activo", notas: "",
+};
+
+function ModuloContratos({ contratos, setContratos, clientes, colaboradores, maestros }) {
+  const [search, setSearch] = useState("");
+  const [estadoFilter, setEstadoFilter] = useState("Activo");
+  const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
+  const [form, setForm] = useState(CONTRATO_EMPTY);
+  const [editForm, setEditForm] = useState(CONTRATO_EMPTY);
+  const [detail, setDetail] = useState(null);
+
+  const tiposContrato = maestros?.tiposContrato?.length ? maestros.tiposContrato : TIPOS_CONTRATO_DEFAULT;
+  const pos = colaboradores.filter(c => c.status === "Activo").map(c => c.name).sort();
+  const clienteNombre = (id) => clientes.find(c => c.id === id || String(c.id) === String(id))?.nombre || "—";
+
+  const filtered = contratos.filter(c =>
+    (estadoFilter === "Todos" || c.estado === estadoFilter) &&
+    ((c.numero||"").toLowerCase().includes(search.toLowerCase()) ||
+     clienteNombre(c.clienteId).toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const handleAdd = async () => {
+    if (!form.numero.trim() || !form.clienteId) { alert("Número y cliente son requeridos"); return; }
+    const res = await fetch("/api/contratos", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setContratos(p => [...p, saved]);
+    setModal(false); setForm(CONTRATO_EMPTY);
+  };
+
+  const handleEdit = async () => {
+    const res = await fetch("/api/contratos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editModal.id, ...editForm }) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setContratos(p => p.map(c => c.id === editModal.id ? saved : c));
+    setEditModal(null);
+  };
+
+  const handleDelete = async (c) => {
+    if (!confirm(`¿Eliminar contrato "${c.numero}"?`)) return;
+    await fetch("/api/contratos", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: c.id }) });
+    setContratos(p => p.filter(x => x.id !== c.id));
+    setDetail(null); setEditModal(null);
+  };
+
+  const handleToggleEstado = async (c) => {
+    const body = { ...c, estado: c.estado === "Activo" ? "Inactivo" : "Activo" };
+    const res = await fetch("/api/contratos", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    if (!saved.error) setContratos(p => p.map(x => x.id === c.id ? { ...x, estado: body.estado } : x));
+  };
+
+  const openEdit = (c) => {
+    setEditForm({ numero: c.numero, clienteId: String(c.clienteId), tipo: c.tipo, moneda: c.moneda, montoMensual: c.montoMensual||0, montoTotal: c.montoTotal||0, tribu: c.tribu||"Dunamis", po: c.po||"", fechaInicio: c.fechaInicio||"", fechaVencimiento: c.fechaVencimiento||"", renovacionAutomatica: !!c.renovacionAutomatica, estado: c.estado, notas: c.notas||"" });
+    setEditModal(c); setDetail(null);
+  };
+
+  const VigenciaTag = ({ fecha }) => {
+    if (!fecha) return <span className="text-slate-500 text-xs">Sin fecha</span>;
+    const dias = Math.ceil((new Date(fecha) - new Date()) / 86400000);
+    const color = dias < 0 ? "text-red-400" : dias <= 60 ? "text-amber-400" : "text-emerald-400";
+    return <span className={`text-xs font-mono font-semibold ${color}`}>{dias < 0 ? `Venció ${Math.abs(dias)}d` : dias <= 30 ? `${dias}d ⚠` : fecha}</span>;
+  };
+
+  const ContratoForm = ({ f, setF }) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="N° Contrato *" value={f.numero} onChange={e => setF(x => ({ ...x, numero: e.target.value }))} placeholder="CN-2026-001" />
+        <Select label="Cliente *" value={f.clienteId} onChange={e => setF(x => ({ ...x, clienteId: e.target.value }))} options={[{ value: "", label: "Seleccionar cliente..." }, ...clientes.filter(c => c.estado === "Activo").map(c => ({ value: String(c.id), label: c.nombre }))]} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={tiposContrato} />
+        <Select label="Moneda" value={f.moneda} onChange={e => setF(x => ({ ...x, moneda: e.target.value }))} options={["USD","CRC","EUR"]} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Monto mensual" type="number" value={f.montoMensual} onChange={e => setF(x => ({ ...x, montoMensual: Number(e.target.value) }))} />
+        <Input label="Monto total contrato" type="number" value={f.montoTotal} onChange={e => setF(x => ({ ...x, montoTotal: Number(e.target.value) }))} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Tribu" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+        <Select label="PO / Responsable" value={f.po} onChange={e => setF(x => ({ ...x, po: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...pos.map(p => ({ value: p, label: p }))]} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Fecha inicio" type="date" value={f.fechaInicio} onChange={e => setF(x => ({ ...x, fechaInicio: e.target.value }))} />
+        <Input label="Fecha vencimiento" type="date" value={f.fechaVencimiento} onChange={e => setF(x => ({ ...x, fechaVencimiento: e.target.value }))} />
+      </div>
+      <label className="flex items-center gap-2 text-sm text-slate-300 cursor-pointer">
+        <input type="checkbox" checked={f.renovacionAutomatica} onChange={e => setF(x => ({ ...x, renovacionAutomatica: e.target.checked }))} className="w-4 h-4 accent-blue-500" />
+        Renovación automática
+      </label>
+      <div><label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas</label><textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" /></div>
+    </div>
+  );
+
+  const totalMRR = filtered.filter(c => c.estado === "Activo" && c.moneda === "USD").reduce((s, c) => s + (c.montoMensual || 0), 0);
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI title="Contratos activos" value={contratos.filter(c => c.estado === "Activo").length} color="blue" />
+        <KPI title="MRR USD" value={`$${totalMRR.toLocaleString()}`} color="green" />
+        <KPI title="Por vencer 60d" value={contratos.filter(c => { if (!c.fechaVencimiento) return false; const d = Math.ceil((new Date(c.fechaVencimiento) - new Date()) / 86400000); return d >= 0 && d <= 60; }).length} color="amber" />
+        <KPI title="Vencidos" value={contratos.filter(c => c.fechaVencimiento && new Date(c.fechaVencimiento) < new Date() && c.estado === "Activo").length} color="red" />
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar contrato o cliente..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
+        <div className="flex gap-1">{["Activo","Inactivo","Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}</div>
+        <Btn size="sm" onClick={() => setModal(true)} className="ml-auto">+ Nuevo contrato</Btn>
+      </div>
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table className="w-full text-sm min-w-[700px]">
+          <thead className="bg-slate-800/80"><tr>{["N° Contrato","Cliente","Tipo","Tribu","Monto mensual","Vigencia","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+          <tbody>
+            {filtered.map(c => (
+              <tr key={c.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${c.estado === "Inactivo" ? "opacity-50" : ""}`}>
+                <td className="px-3 py-3 text-blue-400 font-mono text-xs font-bold whitespace-nowrap">{c.numero}</td>
+                <td className="px-3 py-3 text-white font-medium">{clienteNombre(c.clienteId)}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color="blue">{c.tipo}</Badge></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Pill label={c.tribu} color={c.tribu} /></td>
+                <td className="px-3 py-3 text-emerald-400 font-mono text-xs font-bold whitespace-nowrap">{c.moneda} {(c.montoMensual||0).toLocaleString()}</td>
+                <td className="px-3 py-3"><VigenciaTag fecha={c.fechaVencimiento} /></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color={c.estado === "Activo" ? "green" : "gray"}>{c.estado}</Badge></td>
+                <td className="px-3 py-3 whitespace-nowrap"><div className="flex gap-1"><Btn variant="ghost" size="sm" onClick={() => setDetail(c)}>Ver</Btn><Btn variant="ghost" size="sm" onClick={() => openEdit(c)}>✏️</Btn><Btn variant={c.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(c)}>{c.estado === "Activo" ? "Off" : "On"}</Btn></div></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron contratos</p>}
+      </div>
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo contrato"><ContratoForm f={form} setF={setForm} /><div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div></Modal>
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.numero}`}><ContratoForm f={editForm} setF={setEditForm} /><div className="flex justify-between pt-4"><Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn><div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div></div></Modal>
+      <Modal open={!!detail} onClose={() => setDetail(null)} title={`Contrato ${detail?.numero}`}>
+        {detail && (<div className="space-y-2">{[["Cliente",clienteNombre(detail.clienteId)],["Tipo",detail.tipo],["Moneda",detail.moneda],["Monto mensual",`${detail.moneda} ${(detail.montoMensual||0).toLocaleString()}`],["Monto total",`${detail.moneda} ${(detail.montoTotal||0).toLocaleString()}`],["Tribu",detail.tribu],["PO",detail.po||"—"],["Inicio",detail.fechaInicio||"—"],["Vencimiento",detail.fechaVencimiento||"—"],["Renovación auto",detail.renovacionAutomatica?"Sí":"No"],["Estado",detail.estado]].map(([k,v]) => (<div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30"><span className="text-xs text-slate-500">{k}</span><span className="text-sm text-white">{v}</span></div>))}{detail.notas && <div className="bg-slate-800/40 rounded-lg p-3 mt-2"><p className="text-xs text-slate-400">{detail.notas}</p></div>}<div className="flex justify-between pt-3"><Btn variant="danger" size="sm" onClick={() => handleDelete(detail)}>Eliminar</Btn><Btn size="sm" onClick={() => openEdit(detail)}>✏️ Editar</Btn></div></div>)}
+      </Modal>
+    </div>
+  );
+}
+
+// ─── TAB MAESTROS (dentro de Parámetros) ─────────────────────────────────────
+
+function TabMaestros({ maestros, setMaestros }) {
+  const [tab, setTab] = useState("paises");
+  const [nuevoItem, setNuevoItem] = useState("");
+
+  const listas = {
+    paises:        { label: "Países" },
+    industrias:    { label: "Industrias" },
+    tiposContrato: { label: "Tipos de contrato" },
+  };
+  const defaults = { paises: PAISES_DEFAULT, industrias: INDUSTRIAS_DEFAULT, tiposContrato: TIPOS_CONTRATO_DEFAULT };
+  const current = maestros[tab]?.length ? maestros[tab] : defaults[tab];
+
+  const save = async (updated) => {
+    await fetch("/api/maestros", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ tipo: tab, valores: updated }) });
+    setMaestros(m => ({ ...m, [tab]: updated }));
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex gap-1 border-b border-slate-700/50 overflow-x-auto">
+        {Object.entries(listas).map(([key, { label }]) => (
+          <button key={key} onClick={() => { setTab(key); setNuevoItem(""); }}
+            className={`px-4 py-2 text-xs font-medium whitespace-nowrap rounded-t-lg transition-colors ${tab === key ? "bg-slate-800 text-white border border-slate-700/50" : "text-slate-400 hover:text-slate-300"}`}>
+            {label} <span className="ml-1 text-slate-500">({(maestros[key]?.length || defaults[key].length)})</span>
+          </button>
+        ))}
+      </div>
+      <div className="flex gap-2">
+        <input value={nuevoItem} onChange={e => setNuevoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && (save([...current, nuevoItem.trim()]), setNuevoItem(""))}
+          placeholder={`Nuevo ${listas[tab].label.slice(0,-1).toLowerCase()}...`}
+          className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
+        <Btn size="sm" onClick={() => { if (nuevoItem.trim() && !current.includes(nuevoItem.trim())) save([...current, nuevoItem.trim()]); setNuevoItem(""); }}>+ Agregar</Btn>
+      </div>
+      <div className="space-y-1.5">
+        {current.map((item, i) => (
+          <div key={i} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-2.5 border border-slate-700/30">
+            <span className="text-sm text-white">{item}</span>
+            <button onClick={() => save(current.filter(x => x !== item))} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/10">✕ Eliminar</button>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }
@@ -2466,7 +2842,9 @@ function ModuloSimulador({ servicios, colaboradores, disponibilidad, ausencias, 
 const VIEWS = [
   { id: "parametros",    label: "Parámetros",     icon: "⚙" },
   { id: "colaboradores", label: "Colaboradores",  icon: "◉" },
-  { id: "servicios",     label: "Servicios",      icon: "◫" },
+  { id: "clientes",      label: "Clientes",       icon: "◎" },
+  { id: "contratos",     label: "Contratos",      icon: "◫" },
+  { id: "servicios",     label: "Servicios",      icon: "⚙" },
   { id: "dashboard",     label: "Dashboard",      icon: "⬡" },
   { id: "utilizacion",   label: "Utilización",    icon: "◎" },
   { id: "asignaciones",  label: "Asignaciones",   icon: "◧" },
@@ -2948,6 +3326,10 @@ export default function App() {
   const [asignaciones, setAsignaciones] = useState(ASIGNACIONES_SEED);
   const [params, setParams] = useState(PARAMS_SEED);
   const [loading, setLoading] = useState(true);
+  const [clientes, setClientes] = useState([]);
+  const [contactos, setContactos] = useState([]);
+  const [contratos, setContratos] = useState([]);
+  const [maestros, setMaestros] = useState({ paises: [], industrias: [], tiposContrato: [] });
 
   useEffect(() => {
     Promise.all([
@@ -2958,7 +3340,11 @@ export default function App() {
       fetch("/api/calendar").then(r => r.json()),
       fetch("/api/params").then(r => r.json()),
       fetch("/api/disponibilidad").then(r => r.json()),
-    ]).then(([cols, servs, asigs, aus, cal, par, disp]) => {
+      fetch("/api/clientes").then(r => r.json()),
+      fetch("/api/contactos").then(r => r.json()),
+      fetch("/api/contratos").then(r => r.json()),
+      fetch("/api/maestros").then(r => r.json()),
+    ]).then(([cols, servs, asigs, aus, cal, par, disp, clis, conts, contrs, maes]) => {
       if (Array.isArray(cols) && cols.length > 0) setColaboradores(cols);
       if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
       if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
@@ -2966,6 +3352,10 @@ export default function App() {
       if (Array.isArray(cal) && cal.length > 0) setCalendar(cal.filter(m => m.mes >= "2026-01"));
       if (par && !par.error) setParams({ ...PARAMS_SEED, ...par });
       if (Array.isArray(disp)) setDisponibilidad(disp);
+      if (Array.isArray(clis)) setClientes(clis);
+      if (Array.isArray(conts)) setContactos(conts);
+      if (Array.isArray(contrs)) setContratos(contrs);
+      if (maes && !maes.error) setMaestros(m => ({ ...m, ...maes }));
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -3094,7 +3484,9 @@ export default function App() {
           {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
-          {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
+          {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} maestros={maestros} setMaestros={setMaestros} />}
+          {view === "clientes"      && <ModuloClientes clientes={clientes} setClientes={setClientes} contactos={contactos} setContactos={setContactos} maestros={maestros} />}
+          {view === "contratos"     && <ModuloContratos contratos={contratos} setContratos={setContratos} clientes={clientes} colaboradores={colaboradores} maestros={maestros} />}
           {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
           {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
           {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
