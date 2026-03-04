@@ -73,7 +73,7 @@ function Pill({ label, color }) {
 }
 
 function KPI({ title, value, sub, color = "blue" }) {
-  const acc = { blue: "border-blue-500/30 text-blue-400", green: "border-emerald-500/30 text-emerald-400", amber: "border-amber-500/30 text-amber-400", red: "border-red-500/30 text-red-400" };
+  const acc = { blue: "border-blue-500/30 text-blue-400", green: "border-emerald-500/30 text-emerald-400", amber: "border-amber-500/30 text-amber-400", red: "border-red-500/30 text-red-400", purple: "border-purple-500/30 text-purple-400", gray: "border-slate-500/30 text-slate-400" };
   return (
     <div className={`rounded-xl border bg-slate-900/60 p-4 ${acc[color].split(" ")[0]}`}>
       <p className="text-xs text-slate-500 uppercase tracking-widest mb-1">{title}</p>
@@ -1242,7 +1242,7 @@ function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad,
                       const srv = servicios.find(s => s.id === a.servicioId || s.id === a.servicio_id);
                       return (
                         <tr key={i} className="border-t border-slate-700/30 hover:bg-slate-800/20">
-                          <td className="px-3 py-2.5"><Pill label={a.rol} color={a.rol} /></td>
+                          <td className="px-3 py-2.5">{a.rol ? <Pill label={a.rol} color={a.rol} /> : <span className="text-slate-500 text-xs">—</span>}</td>
                           <td className="px-3 py-2.5 text-slate-300 text-xs">{a.colaborador || <span className="text-slate-600">Por rol</span>}</td>
                           <td className="px-3 py-2.5 text-white text-xs">{srv?.nombre || `Servicio #${a.servicioId || a.servicio_id}`}</td>
                           <td className="px-3 py-2.5 text-slate-300 font-mono text-xs">{a.horas}h</td>
