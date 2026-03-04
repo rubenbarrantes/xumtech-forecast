@@ -527,12 +527,12 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
   );
 }
 
-function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros, activeTab }) {
+function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, params, setParams, maestros, setMaestros, proveedores, activeTab }) {
 
   const [tabInternal, setTabInternal] = useState("calendario");
   const tab = activeTab || tabInternal;
   const setTab = (v) => setTabInternal(v);
-  const [dispForm, setDispForm] = useState({ colaborador: "", rol: "Técnico", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 });
+  const [dispForm, setDispForm] = useState({ tipoRecurso: "colaborador", colaborador: "", rol: "Técnico", tribu: "Dunamis", mes: "2026-01", porcentaje: 100 });
   const [dispModal, setDispModal] = useState(false);
   const [calModal, setCalModal] = useState(false);
   const [calForm, setCalForm] = useState({ mes: "", ano: "2026", mo: "", diasLaboralesBrutos: 20, diasLibres: 0 });
@@ -922,7 +922,33 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
 
           <Modal open={dispModal} onClose={() => setDispModal(false)} title="Nueva asignación de disponibilidad">
             <div className="space-y-4">
-              <Select label="Colaborador" value={dispForm.colaborador} onChange={e => setDispForm(f => ({ ...f, colaborador: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...activos.map(n => ({ value: n, label: n }))]} />
+              {/* Tipo de recurso */}
+              <div>
+                <p className="text-xs text-slate-400 uppercase tracking-wider mb-1.5">Tipo de recurso</p>
+                <div className="flex gap-2">
+                  {["colaborador","proveedor"].map(tipo => (
+                    <button key={tipo} onClick={() => setDispForm(f => ({ ...f, tipoRecurso: tipo, colaborador: "" }))}
+                      className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${dispForm.tipoRecurso === tipo ? "bg-blue-600/20 border-blue-500 text-blue-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700"}`}>
+                      {tipo === "colaborador" ? "👤 Colaborador" : "🤝 Proveedor"}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Selector dinámico según tipo */}
+              {dispForm.tipoRecurso === "colaborador" ? (
+                <Select label="Colaborador" value={dispForm.colaborador}
+                  onChange={e => setDispForm(f => ({ ...f, colaborador: e.target.value }))}
+                  options={[{ value: "", label: "Seleccionar..." }, ...activos.map(n => ({ value: n, label: n }))]} />
+              ) : (
+                <Select label="Proveedor" value={dispForm.colaborador}
+                  onChange={e => {
+                    const prov = (proveedores||[]).find(p => p.nombre === e.target.value);
+                    setDispForm(f => ({ ...f, colaborador: e.target.value, tribu: prov?.tribu || f.tribu, rol: prov?.especialidad || f.rol }));
+                  }}
+                  options={[{ value: "", label: "Seleccionar..." }, ...(proveedores||[]).filter(p => p.estado === "Activo").map(p => ({ value: p.nombre, label: `${p.nombre} · ${p.tribu}${p.costoHora ? ` · ${p.monedaCosto} ${p.costoHora}/h` : ""}` }))]} />
+              )}
+
               <div className="grid grid-cols-2 gap-3">
                 <Select label="Rol Operativo" value={dispForm.rol} onChange={e => setDispForm(f => ({ ...f, rol: e.target.value }))} options={maestros?.rolesOperativos?.length ? maestros.rolesOperativos : ROLES_DEFAULT} />
                 <Select label="Tribu" value={dispForm.tribu} onChange={e => setDispForm(f => ({ ...f, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
@@ -2411,7 +2437,7 @@ function TabMaestros({ maestros, setMaestros }) {
 
 // ─── MÓDULO: CONFIGURACIÓN ───────────────────────────────────────────────────
 
-function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias }) {
+function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calendar, setCalendar, disponibilidad, setDisponibilidad, colaboradores, ausencias, proveedores }) {
   const [tab, setTab] = useState("calendario");
   const TABS = [
     ["calendario",    "📅 Calendario"],
@@ -2435,6 +2461,7 @@ function ModuloConfiguracion({ maestros, setMaestros, params, setParams, calenda
         colaboradores={colaboradores} ausencias={ausencias}
         params={params} setParams={setParams}
         maestros={maestros} setMaestros={setMaestros}
+        proveedores={proveedores}
         activeTab={tab}
       />
     </div>
@@ -4177,7 +4204,7 @@ export default function App() {
         {/* Page content */}
         <div className="xt-padding flex-1 p-6 lg:p-8">
          {view === "alertas"       && <ModuloAlertas alertas={alertas} onNavigate={navigate} />}
-          {view === "configuracion"  && <ModuloConfiguracion maestros={maestros} setMaestros={setMaestros} params={params} setParams={setParams} calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} />}
+          {view === "configuracion"  && <ModuloConfiguracion maestros={maestros} setMaestros={setMaestros} params={params} setParams={setParams} calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} proveedores={proveedores} />}
           {view === "consultoria"    && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "utilizacion"   && <ModuloUtilizacion colaboradores={colaboradores} asignaciones={asignaciones} ausencias={ausencias} calendar={calendar} servicios={servicios} params={params} setParams={setParams} />}
