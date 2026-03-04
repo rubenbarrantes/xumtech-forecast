@@ -506,6 +506,7 @@ function ModuloParametros({ calendar, setCalendar, disponibilidad, setDisponibil
   const [calModal, setCalModal] = useState(false);
   const [calForm, setCalForm] = useState({ mes: "", label: "", diasLaborales: 20, feriados: 0 });
   const [savingCal, setSavingCal] = useState(null);
+  const calDesc = [...calendar].sort((a, b) => b.mes.localeCompare(a.mes));
 
   // Calendario: guardar cambio en BD con debounce
   const handleCalEdit = async (mes, field, val) => {
