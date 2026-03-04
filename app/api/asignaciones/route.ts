@@ -1,59 +1,100 @@
+// app/api/asignaciones/route.ts
 import { NextResponse } from "next/server";
-import sql from "@/lib/db";
+import { neon } from "@neondatabase/serverless";
+
+const sql = neon(process.env.DATABASE_URL!);
+
+async function ensure() {
+  await sql`
+    CREATE TABLE IF NOT EXISTS asignaciones (
+      id           SERIAL PRIMARY KEY,
+      tribu        TEXT NOT NULL DEFAULT 'Dunamis',
+      rol          TEXT NOT NULL DEFAULT 'Técnico',
+      colaborador  TEXT,
+      tipo_recurso TEXT NOT NULL DEFAULT 'colaborador',
+      servicio_id  INTEGER,
+      mes          TEXT NOT NULL,
+      horas        NUMERIC NOT NULL DEFAULT 0,
+      created_at   TIMESTAMPTZ DEFAULT NOW()
+    )
+  `;
+  try { await sql`ALTER TABLE asignaciones ADD COLUMN IF NOT EXISTS tipo_recurso TEXT NOT NULL DEFAULT 'colaborador'`; } catch {}
+}
+
+const map = (r: any) => ({
+  id:           r.id,
+  tribu:        r.tribu        || "Dunamis",
+  rol:          r.rol          || "Técnico",
+  colaborador:  r.colaborador  || null,
+  tipoRecurso:  r.tipo_recurso || "colaborador",
+  servicioId:   r.servicio_id  || null,
+  mes:          r.mes          || "",
+  horas:        Number(r.horas || 0),
+});
 
 export async function GET() {
   try {
-    const rows = await sql`SELECT * FROM asignaciones ORDER BY mes, id`;
-    const asignaciones = rows.map((r: any) => ({
-      id: r.id,
-      tribu: r.tribu,
-      rol: r.rol,
-      colaborador: r.colaborador,
-      servicioId: r.servicio_id,
-      mes: r.mes,
-      horas: r.horas,
-    }));
-    return NextResponse.json(asignaciones);
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    await ensure();
+    const rows = await sql`SELECT * FROM asignaciones ORDER BY mes DESC, tribu`;
+    return NextResponse.json(rows.map(map));
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
 export async function POST(req: Request) {
   try {
+    await ensure();
     const b = await req.json();
-    const rows = await sql`
-      INSERT INTO asignaciones (tribu, rol, colaborador, servicio_id, mes, horas)
-      VALUES (${b.tribu}, ${b.rol}, ${b.colaborador ?? null}, ${b.servicioId}, ${b.mes}, ${b.horas})
+    const [row] = await sql`
+      INSERT INTO asignaciones (tribu, rol, colaborador, tipo_recurso, servicio_id, mes, horas)
+      VALUES (
+        ${b.tribu || "Dunamis"},
+        ${b.rol || "Técnico"},
+        ${b.colaborador || null},
+        ${b.tipoRecurso || "colaborador"},
+        ${b.servicioId || null},
+        ${b.mes},
+        ${Number(b.horas || 0)}
+      )
       RETURNING *
     `;
-    const r = rows[0];
-    return NextResponse.json({ id: r.id, tribu: r.tribu, rol: r.rol, colaborador: r.colaborador, servicioId: r.servicio_id, mes: r.mes, horas: r.horas });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    return NextResponse.json(map(row));
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
 export async function PUT(req: Request) {
   try {
+    await ensure();
     const b = await req.json();
-    await sql`
-      UPDATE asignaciones SET tribu=${b.tribu}, rol=${b.rol}, colaborador=${b.colaborador ?? null},
-      servicio_id=${b.servicioId}, mes=${b.mes}, horas=${b.horas}
-      WHERE id=${b.id}
+    if (!b.id) return NextResponse.json({ error: "id requerido" }, { status: 400 });
+    const [row] = await sql`
+      UPDATE asignaciones SET
+        tribu        = ${b.tribu || "Dunamis"},
+        rol          = ${b.rol || "Técnico"},
+        colaborador  = ${b.colaborador || null},
+        tipo_recurso = ${b.tipoRecurso || "colaborador"},
+        servicio_id  = ${b.servicioId || null},
+        mes          = ${b.mes},
+        horas        = ${Number(b.horas || 0)}
+      WHERE id = ${b.id}
+      RETURNING *
     `;
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    if (!row) return NextResponse.json({ error: "No encontrado" }, { status: 404 });
+    return NextResponse.json(map(row));
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }
 
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
-    await sql`DELETE FROM asignaciones WHERE id=${id}`;
-    return NextResponse.json({ ok: true });
-  } catch (error) {
-    return NextResponse.json({ error: String(error) }, { status: 500 });
+    await sql`DELETE FROM asignaciones WHERE id = ${id}`;
+    return NextResponse.json({ deleted: true });
+  } catch (e: any) {
+    return NextResponse.json({ error: e.message }, { status: 500 });
   }
 }

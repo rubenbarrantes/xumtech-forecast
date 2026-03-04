@@ -2556,9 +2556,9 @@ function ModuloDashboard({ colaboradores, servicios, calendar, disponibilidad, a
 
 // ─── MÓDULO: ASIGNACIONES ────────────────────────────────────────────────────
 
-const ASIG_FORM_DEFAULT = { tribu: "Dunamis", rol: "Técnico", colaborador: "", servicioId: "", mes: "2026-02", horas: 0 };
+const ASIG_FORM_DEFAULT = { tribu: "Dunamis", rol: "Técnico", tipoRecurso: "colaborador", colaborador: "", servicioId: "", mes: "2026-02", horas: 0 };
 
-function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, servicios, ausencias, calendar, params }) {
+function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, proveedores, servicios, ausencias, calendar, params }) {
 
   const [mesFilter, setMesFilter] = useState("2026-02");
   const [tribFilter, setTribFilter] = useState("Todas");
@@ -2576,6 +2576,8 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
 
   const esPiloto = params.pilotoPorPersona.includes(form.tribu);
   const personasTribu = colaboradores.filter(c => c.tribu === form.tribu && c.status === "Activo");
+  const proveedoresTribu = (proveedores || []).filter(p => p.tribu === form.tribu && p.estado === "Activo");
+  const recursosTribu = form.tipoRecurso === "proveedor" ? proveedoresTribu : personasTribu;
   const serviciosFiltrados = servicios.filter(s => s.estado === "Activo");
 
   const servicio = servicios.find(s => s.id === Number(form.servicioId));
@@ -2602,8 +2604,8 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       }
     }
 
-    // Validar capacidad de persona (Yarigai)
-    if (esPiloto && form.colaborador) {
+    // Validar capacidad de persona (Yarigai) — solo para colaboradores internos
+    if (esPiloto && form.colaborador && form.tipoRecurso !== "proveedor") {
       const colab = colaboradores.find(c => c.name === form.colaborador);
       if (colab) {
         const cap = motor.capacidadPersona(colab, form.mes);
@@ -2627,7 +2629,8 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       ...form,
       servicioId: Number(form.servicioId),
       horas: Number(form.horas),
-      colaborador: esPiloto ? form.colaborador : null,
+      colaborador: (esPiloto || form.tipoRecurso === "proveedor") ? form.colaborador : null,
+      tipoRecurso: form.tipoRecurso || "colaborador",
     };
     const res = await fetch("/api/asignaciones", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
     const saved = await res.json();
@@ -2724,7 +2727,14 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
                 <tr key={a.id} className="border-t border-slate-700/30 hover:bg-slate-800/20">
                   <td className="px-3 py-2.5"><Pill label={a.tribu} color={a.tribu} /></td>
                   <td className="px-3 py-2.5"><Pill label={a.rol} color={a.rol} /></td>
-                  <td className="px-3 py-2.5 text-slate-300 text-xs">{a.colaborador || <span className="text-slate-600">— por rol</span>}</td>
+                  <td className="px-3 py-2.5 text-slate-300 text-xs">
+                    {a.colaborador
+                      ? <span className="flex items-center gap-1">
+                          {a.tipoRecurso === "proveedor" && <span className="text-purple-400 text-xs">🤝</span>}
+                          {a.colaborador}
+                        </span>
+                      : <span className="text-slate-600">— por rol</span>}
+                  </td>
                   <td className="px-3 py-2.5 text-white text-xs font-medium">{srv?.nombre || `#${a.servicioId}`}</td>
                   <td className="px-3 py-2.5 text-slate-400 font-mono text-xs">{a.mes}</td>
                   <td className="px-3 py-2.5 font-mono font-bold text-white">{a.horas}h</td>
@@ -2753,18 +2763,44 @@ function ModuloAsignaciones({ asignaciones, setAsignaciones, colaboradores, serv
       <Modal open={modal} onClose={() => setModal(false)} title="Nueva asignación de horas">
         <div className="space-y-4">
           <div className="grid grid-cols-2 gap-3">
-            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value, colaborador: "" }))} options={TRIBUS_DEFAULT} />
+            <Select label="Tribu" value={form.tribu} onChange={e => setForm(f => ({ ...f, tribu: e.target.value, colaborador: "", tipoRecurso: "colaborador" }))} options={TRIBUS_DEFAULT} />
             <Select label="Rol" value={form.rol} onChange={e => setForm(f => ({ ...f, rol: e.target.value }))} options={ROLES_DEFAULT} />
           </div>
 
-          {/* Colaborador — solo si es tribu piloto */}
-          {params.pilotoPorPersona.includes(form.tribu) && (
+          {/* Tipo de recurso */}
+          <div>
+            <p className="text-xs text-slate-400 uppercase tracking-wider mb-1.5">Tipo de recurso</p>
+            <div className="flex gap-2">
+              {["colaborador","proveedor"].map(tipo => (
+                <button key={tipo} onClick={() => setForm(f => ({ ...f, tipoRecurso: tipo, colaborador: "" }))}
+                  className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${form.tipoRecurso === tipo ? "bg-blue-600/20 border-blue-500 text-blue-400" : "bg-slate-800 border-slate-700 text-slate-400 hover:bg-slate-700"}`}>
+                  {tipo === "colaborador" ? "👤 Colaborador" : "🤝 Proveedor"}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Selector de persona — colaborador o proveedor */}
+          {(params.pilotoPorPersona.includes(form.tribu) || form.tipoRecurso === "proveedor") && (
             <Select
-              label="Colaborador (piloto por persona)"
+              label={form.tipoRecurso === "proveedor" ? "Proveedor" : "Colaborador (piloto por persona)"}
               value={form.colaborador}
               onChange={e => setForm(f => ({ ...f, colaborador: e.target.value }))}
-              options={[{ value: "", label: "Seleccionar..." }, ...personasTribu.map(c => ({ value: c.name, label: c.name }))]}
+              options={[
+                { value: "", label: "Seleccionar..." },
+                ...recursosTribu.map(r => ({
+                  value: r.name || r.nombre,
+                  label: form.tipoRecurso === "proveedor"
+                    ? `${r.nombre} ${r.costoHora ? `· ${r.monedaCosto} ${r.costoHora}/h` : ""}`.trim()
+                    : r.name
+                }))
+              ]}
             />
+          )}
+          {form.tipoRecurso === "proveedor" && proveedoresTribu.length === 0 && (
+            <p className="text-xs text-amber-400 bg-amber-500/10 border border-amber-500/20 rounded-lg px-3 py-2">
+              No hay proveedores activos en {form.tribu}. Configúralos en Consultoría → Proveedores.
+            </p>
           )}
 
           <div className="grid grid-cols-2 gap-3">
@@ -4145,7 +4181,7 @@ export default function App() {
           {view === "consultoria"    && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "dashboard"     && <ModuloDashboard colaboradores={colaboradores} servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} alertas={alertas} onNavigate={navigate} params={params} />}
           {view === "utilizacion"   && <ModuloUtilizacion colaboradores={colaboradores} asignaciones={asignaciones} ausencias={ausencias} calendar={calendar} servicios={servicios} params={params} setParams={setParams} />}
-          {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} proveedores={proveedores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "proveedores"   && <ModuloProveedores proveedores={proveedores} setProveedores={setProveedores} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} servicios={servicios} setServicios={setServicios} calendar={calendar} params={params} maestros={maestros} />}
