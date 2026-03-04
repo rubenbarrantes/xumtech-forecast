@@ -1445,6 +1445,301 @@ const INDUSTRIAS_DEFAULT = ["Tecnología","Retail / Comercio","Banca y Finanzas"
 const TIPOS_CONTRATO_DEFAULT = ["Tiempo y Materiales","Precio Fijo","Retención Mensual","Bolsa de Horas","Talento Dedicado","Proyecto Llave en Mano","Otro"];
 const TAMANIOS_EMPRESA = ["1-10","11-50","51-200","201-500","501-1000","1000+"];
 
+// ─── MÓDULO: PROVEEDORES ─────────────────────────────────────────────────────
+
+const PROVEEDOR_EMPTY = {
+  codigo: "", nombre: "", tipo: "Persona física",
+  cedula: "", correo: "", telefono: "",
+  especialidad: "", tribu: "Dunamis",
+  costoHora: 0, monedaCosto: "USD",
+  pais: "Costa Rica", notas: "", estado: "Activo",
+  horasDia: 8,
+};
+
+const TIPOS_PROVEEDOR = ["Persona física", "Empresa"];
+
+function ModuloProveedores({ proveedores, setProveedores, disponibilidad, setDisponibilidad, calendar, params, maestros }) {
+  const [search, setSearch] = useState("");
+  const [estadoFilter, setEstadoFilter] = useState("Activo");
+  const [modal, setModal] = useState(false);
+  const [editModal, setEditModal] = useState(null);
+  const [detailModal, setDetailModal] = useState(null);
+  const [dispModal, setDispModal] = useState(null); // proveedor para configurar disponibilidad
+  const [form, setForm] = useState({ ...PROVEEDOR_EMPTY, codigo: `PRV-${String(Date.now()).slice(-5)}` });
+  const [editForm, setEditForm] = useState(PROVEEDOR_EMPTY);
+  const [formErrors, setFormErrors] = useState({});
+  const [dispForm, setDispForm] = useState({ mes: "", porcentaje: 100 });
+
+  const paises = maestros?.paises?.length ? maestros.paises : PAISES_DEFAULT;
+  const calDesc = [...calendar].sort((a, b) => b.mes.localeCompare(a.mes));
+
+  const filtered = proveedores.filter(p =>
+    (estadoFilter === "Todos" || p.estado === estadoFilter) &&
+    (p.nombre.toLowerCase().includes(search.toLowerCase()) ||
+     (p.codigo||"").toLowerCase().includes(search.toLowerCase()) ||
+     (p.especialidad||"").toLowerCase().includes(search.toLowerCase()))
+  );
+
+  const validate = (f) => {
+    const e = {};
+    if (!f.nombre.trim()) e.nombre = "Requerido";
+    if (f.correo && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(f.correo)) e.correo = "Email inválido";
+    if (f.telefono && !/^[+\d\s\-()\-]{6,20}$/.test(f.telefono)) e.telefono = "Formato inválido";
+    return e;
+  };
+
+  const handleAdd = async () => {
+    const errs = validate(form);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const res = await fetch("/api/proveedores", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(form) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setProveedores(p => [...p, saved]);
+    setModal(false);
+    setForm({ ...PROVEEDOR_EMPTY, codigo: `PRV-${String(Date.now()).slice(-5)}` });
+    setFormErrors({});
+  };
+
+  const handleEdit = async () => {
+    const errs = validate(editForm);
+    if (Object.keys(errs).length) { setFormErrors(errs); return; }
+    const res = await fetch("/api/proveedores", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: editModal.id, ...editForm }) });
+    const saved = await res.json();
+    if (saved.error) { alert(saved.error); return; }
+    setProveedores(p => p.map(x => x.id === editModal.id ? saved : x));
+    setEditModal(null); setDetailModal(null); setFormErrors({});
+  };
+
+  const handleDelete = async (p) => {
+    if (!confirm(`¿Eliminar proveedor "${p.nombre}"?`)) return;
+    await fetch("/api/proveedores", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id: p.id }) });
+    setProveedores(prev => prev.filter(x => x.id !== p.id));
+    setDetailModal(null); setEditModal(null);
+  };
+
+  const handleToggleEstado = async (p) => {
+    const body = { ...p, estado: p.estado === "Activo" ? "Inactivo" : "Activo" };
+    const res = await fetch("/api/proveedores", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+    const saved = await res.json();
+    if (!saved.error) {
+      setProveedores(prev => prev.map(x => x.id === p.id ? { ...x, estado: body.estado } : x));
+      if (detailModal?.id === p.id) setDetailModal({ ...detailModal, estado: body.estado });
+    }
+  };
+
+  const openEdit = (p) => {
+    setEditForm({ codigo: p.codigo||"", nombre: p.nombre, tipo: p.tipo||"Persona física", cedula: p.cedula||"", correo: p.correo||"", telefono: p.telefono||"", especialidad: p.especialidad||"", tribu: p.tribu||"Dunamis", costoHora: p.costoHora||0, monedaCosto: p.monedaCosto||"USD", pais: p.pais||"Costa Rica", notas: p.notas||"", estado: p.estado||"Activo", horasDia: p.horasDia||8 });
+    setFormErrors({});
+    setEditModal(p); setDetailModal(null);
+  };
+
+  // Disponibilidad del proveedor (usa su nombre como "colaborador" en la tabla disponibilidad)
+  const dispDeProveedor = (nombre) => disponibilidad.filter(d => d.colaborador === nombre);
+
+  const handleAddDisp = async () => {
+    if (!dispModal || !dispForm.mes) return;
+    const body = { colaborador: dispModal.nombre, tribu: dispModal.tribu, rol: dispModal.especialidad || "Proveedor", mes: dispForm.mes, porcentaje: Number(dispForm.porcentaje), esProveedor: true };
+    const existing = dispDeProveedor(dispModal.nombre).find(d => d.mes === dispForm.mes);
+    if (existing) {
+      const res = await fetch("/api/disponibilidad", { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ ...existing, porcentaje: Number(dispForm.porcentaje) }) });
+      const saved = await res.json();
+      setDisponibilidad(p => p.map(d => d.id === existing.id ? saved : d));
+    } else {
+      const res = await fetch("/api/disponibilidad", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body) });
+      const saved = await res.json();
+      setDisponibilidad(p => [...p, saved]);
+    }
+    setDispForm({ mes: calDesc[0]?.mes || "", porcentaje: 100 });
+  };
+
+  const handleDeleteDisp = async (id) => {
+    await fetch("/api/disponibilidad", { method: "DELETE", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ id }) });
+    setDisponibilidad(p => p.filter(d => d.id !== id));
+  };
+
+  const ErrMsg = ({ f }) => formErrors[f] ? <p className="text-xs text-red-400 mt-0.5">{formErrors[f]}</p> : null;
+
+  const ProveedorForm = ({ f, setF }) => (
+    <div className="space-y-3">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Código (auto)" value={f.codigo} onChange={e => setF(x => ({ ...x, codigo: e.target.value }))} placeholder="PRV-XXXXX" />
+          <p className="text-xs text-slate-500 mt-0.5">Dejar vacío para generar automático</p>
+        </div>
+        <Select label="Tipo" value={f.tipo} onChange={e => setF(x => ({ ...x, tipo: e.target.value }))} options={TIPOS_PROVEEDOR} />
+      </div>
+      <div>
+        <Input label="Nombre / Razón social *" value={f.nombre} onChange={e => { setF(x => ({ ...x, nombre: e.target.value })); setFormErrors(er => ({ ...er, nombre: "" })); }} />
+        <ErrMsg f="nombre" />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Input label="Cédula / Cédula jurídica" value={f.cedula} onChange={e => setF(x => ({ ...x, cedula: e.target.value }))} placeholder="1-XXXX-XXXX" />
+        <Select label="País" value={f.pais} onChange={e => setF(x => ({ ...x, pais: e.target.value }))} options={paises} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <div>
+          <Input label="Correo" value={f.correo} onChange={e => { setF(x => ({ ...x, correo: e.target.value })); setFormErrors(er => ({ ...er, correo: "" })); }} placeholder="proveedor@empresa.com" />
+          <ErrMsg f="correo" />
+        </div>
+        <div>
+          <Input label="Teléfono" value={f.telefono} onChange={e => { const v = e.target.value.replace(/[^+\d\s\-()\-]/g,""); setF(x => ({ ...x, telefono: v })); setFormErrors(er => ({ ...er, telefono: "" })); }} placeholder="+506 8888-8888" />
+          <ErrMsg f="telefono" />
+        </div>
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+        <Select label="Especialidad / Rol" value={f.especialidad} onChange={e => setF(x => ({ ...x, especialidad: e.target.value }))} options={[{ value: "", label: "Seleccionar..." }, ...ROLES_DEFAULT.map(r => ({ value: r, label: r }))]} />
+        <Select label="Tribu asignada" value={f.tribu} onChange={e => setF(x => ({ ...x, tribu: e.target.value }))} options={TRIBUS_DEFAULT} />
+      </div>
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Input label="Costo / hora" type="number" value={f.costoHora} onChange={e => setF(x => ({ ...x, costoHora: Number(e.target.value) }))} />
+        <Select label="Moneda" value={f.monedaCosto} onChange={e => setF(x => ({ ...x, monedaCosto: e.target.value }))} options={["USD","CRC","EUR"]} />
+        <Input label="Horas / día" type="number" value={f.horasDia} onChange={e => setF(x => ({ ...x, horasDia: Number(e.target.value) }))} />
+      </div>
+      <div>
+        <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Notas</label>
+        <textarea value={f.notas} onChange={e => setF(x => ({ ...x, notas: e.target.value }))} rows={2} className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500 resize-none" />
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="space-y-5">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        <KPI title="Activos" value={proveedores.filter(p => p.estado === "Activo").length} color="purple" />
+        <KPI title="Personas" value={proveedores.filter(p => p.tipo === "Persona física" && p.estado === "Activo").length} color="blue" />
+        <KPI title="Empresas" value={proveedores.filter(p => p.tipo === "Empresa" && p.estado === "Activo").length} color="green" />
+        <KPI title="Con disponibilidad" value={new Set(disponibilidad.filter(d => d.esProveedor || proveedores.some(p => p.nombre === d.colaborador)).map(d => d.colaborador)).size} color="amber" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2">
+        <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar proveedor, código, rol..." className="bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-52" />
+        <div className="flex gap-1">{["Activo","Inactivo","Todos"].map(e => <button key={e} onClick={() => setEstadoFilter(e)} className={`px-2.5 py-1.5 rounded-lg text-xs font-medium transition-colors ${estadoFilter === e ? "bg-slate-600 text-white" : "bg-slate-800 text-slate-400 hover:bg-slate-700 border border-slate-700"}`}>{e}</button>)}</div>
+        <Btn size="sm" onClick={() => { setModal(true); setFormErrors({}); }} className="ml-auto">+ Nuevo proveedor</Btn>
+      </div>
+
+      <div className="overflow-x-auto rounded-xl border border-slate-700/50">
+        <table className="w-full text-sm min-w-[700px]">
+          <thead className="bg-slate-800/80">
+            <tr>{["Código","Nombre","Tipo","Especialidad","Tribu","Costo/h","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr>
+          </thead>
+          <tbody>
+            {filtered.map(p => (
+              <tr key={p.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${p.estado === "Inactivo" ? "opacity-50" : ""}`}>
+                <td className="px-3 py-3"><button onClick={() => setDetailModal(p)} className="text-purple-400 font-mono text-xs hover:underline font-bold">{p.codigo || `PRV-${p.id}`}</button></td>
+                <td className="px-3 py-3"><button onClick={() => setDetailModal(p)} className="text-white font-medium hover:text-purple-300 text-left">{p.nombre}</button></td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color={p.tipo === "Empresa" ? "blue" : "green"}>{p.tipo}</Badge></td>
+                <td className="px-3 py-3 text-slate-400 text-xs">{p.especialidad || "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><Pill label={p.tribu} color={p.tribu} /></td>
+                <td className="px-3 py-3 text-emerald-400 font-mono text-xs font-bold whitespace-nowrap">{p.costoHora ? `${p.monedaCosto} ${p.costoHora}/h` : "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><Badge color={p.estado === "Activo" ? "green" : "gray"}>{p.estado}</Badge></td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <div className="flex gap-1">
+                    <Btn variant="ghost" size="sm" onClick={() => { setDispModal(p); setDispForm({ mes: calDesc[0]?.mes || "", porcentaje: 100 }); }}>📅 Disp.</Btn>
+                    <Btn variant="ghost" size="sm" onClick={() => openEdit(p)}>✏️</Btn>
+                    <Btn variant={p.estado === "Activo" ? "danger" : "ghost"} size="sm" onClick={() => handleToggleEstado(p)}>{p.estado === "Activo" ? "Off" : "On"}</Btn>
+                  </div>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {filtered.length === 0 && <p className="text-center text-slate-500 py-8 text-sm">No se encontraron proveedores</p>}
+      </div>
+
+      {/* Modal nuevo */}
+      <Modal open={modal} onClose={() => setModal(false)} title="Nuevo proveedor">
+        <ProveedorForm f={form} setF={setForm} />
+        <div className="flex justify-end gap-2 pt-4"><Btn variant="ghost" onClick={() => setModal(false)}>Cancelar</Btn><Btn onClick={handleAdd}>Guardar</Btn></div>
+      </Modal>
+
+      {/* Modal editar */}
+      <Modal open={!!editModal} onClose={() => setEditModal(null)} title={`Editar — ${editModal?.nombre}`}>
+        <ProveedorForm f={editForm} setF={setEditForm} />
+        <div className="flex justify-between pt-4">
+          <Btn variant="danger" onClick={() => handleDelete(editModal)}>Eliminar</Btn>
+          <div className="flex gap-2"><Btn variant="ghost" onClick={() => setEditModal(null)}>Cancelar</Btn><Btn onClick={handleEdit}>Guardar</Btn></div>
+        </div>
+      </Modal>
+
+      {/* Modal detalle */}
+      <Modal open={!!detailModal} onClose={() => setDetailModal(null)} title={`${detailModal?.codigo || ""} — ${detailModal?.nombre}`}>
+        {detailModal && (
+          <div className="space-y-2">
+            {[
+              ["Tipo", detailModal.tipo],
+              ["Cédula", detailModal.cedula || "—"],
+              ["País", detailModal.pais || "—"],
+              ["Correo", detailModal.correo || "—"],
+              ["Teléfono", detailModal.telefono || "—"],
+              ["Especialidad", detailModal.especialidad || "—"],
+              ["Tribu", detailModal.tribu],
+              ["Costo / hora", detailModal.costoHora ? `${detailModal.monedaCosto} ${detailModal.costoHora}` : "—"],
+              ["Horas / día", detailModal.horasDia || 8],
+              ["Estado", detailModal.estado],
+            ].map(([k, v]) => (
+              <div key={k} className="flex justify-between py-1.5 border-b border-slate-700/30">
+                <span className="text-xs text-slate-500">{k}</span>
+                <span className="text-sm text-white">{v}</span>
+              </div>
+            ))}
+            {detailModal.notas && <div className="bg-slate-800/40 rounded-lg p-3 mt-1"><p className="text-xs text-slate-400">{detailModal.notas}</p></div>}
+            <div className="flex justify-between pt-3">
+              <Btn variant="ghost" size="sm" onClick={() => { setDispModal(detailModal); setDetailModal(null); setDispForm({ mes: calDesc[0]?.mes || "", porcentaje: 100 }); }}>📅 Disponibilidad</Btn>
+              <Btn size="sm" onClick={() => openEdit(detailModal)}>✏️ Editar</Btn>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Modal disponibilidad del proveedor */}
+      <Modal open={!!dispModal} onClose={() => setDispModal(null)} title={`Disponibilidad — ${dispModal?.nombre}`}>
+        {dispModal && (
+          <div className="space-y-4">
+            <p className="text-xs text-slate-400">Este proveedor aparecerá en los módulos de Consultoría (Utilización, Asignaciones, Forecast) como si fuera un colaborador de la tribu <span className="text-white font-semibold">{dispModal.tribu}</span>.</p>
+
+            {/* Disponibilidad configurada */}
+            <div className="space-y-1.5 max-h-40 overflow-y-auto">
+              {dispDeProveedor(dispModal.nombre).length === 0
+                ? <p className="text-slate-500 text-sm text-center py-3">Sin disponibilidad configurada</p>
+                : dispDeProveedor(dispModal.nombre).sort((a,b) => b.mes > a.mes ? 1 : -1).map(d => (
+                  <div key={d.id} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-2 border border-slate-700/30">
+                    <div className="flex items-center gap-3">
+                      <span className="text-xs font-mono text-blue-400">{d.mes}</span>
+                      <span className="text-sm font-bold text-white">{d.porcentaje}%</span>
+                      <span className="text-xs text-slate-500">{Math.round((d.porcentaje/100) * (dispModal.horasDia||8) * 20)}h aprox/mes</span>
+                    </div>
+                    <button onClick={() => handleDeleteDisp(d.id)} className="text-red-400 hover:text-red-300 text-xs">✕</button>
+                  </div>
+                ))
+              }
+            </div>
+
+            {/* Agregar disponibilidad */}
+            <div className="border-t border-slate-700/50 pt-3 space-y-3">
+              <p className="text-xs font-semibold text-slate-400 uppercase">Configurar mes</p>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-slate-400 uppercase tracking-wider mb-1 block">Mes</label>
+                  <select value={dispForm.mes} onChange={e => setDispForm(f => ({ ...f, mes: e.target.value }))}
+                    className="w-full bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white focus:outline-none focus:border-blue-500">
+                    <option value="">Seleccionar...</option>
+                    {calDesc.map(m => <option key={m.mes} value={m.mes}>{m.label}</option>)}
+                  </select>
+                </div>
+                <div>
+                  <Input label="Disponibilidad %" type="number" value={dispForm.porcentaje}
+                    onChange={e => setDispForm(f => ({ ...f, porcentaje: Math.min(100, Math.max(0, Number(e.target.value))) }))} />
+                </div>
+              </div>
+              <div className="flex justify-end"><Btn size="sm" onClick={handleAddDisp}>Guardar</Btn></div>
+            </div>
+          </div>
+        )}
+      </Modal>
+    </div>
+  );
+}
+
 // ─── MÓDULO: CLIENTES ─────────────────────────────────────────────────────────
 
 const CLIENTE_EMPTY = {
@@ -3115,6 +3410,7 @@ const VIEWS = [
   { id: "contactos",     label: "Contactos",      icon: "◎", sub: true },
   { id: "contratos",     label: "Contratos",      icon: "📄", sub: true },
   { id: "consultoria",   label: "Consultoría",    icon: "◈", header: true },
+  { id: "proveedores",   label: "Proveedores",    icon: "🤝", sub: true },
   { id: "dashboard",     label: "Dashboard",      icon: "⬡", sub: true },
   { id: "servicios",     label: "Servicios",      icon: "◫", sub: true },
   { id: "utilizacion",   label: "Utilización",    icon: "◎", sub: true },
@@ -3602,6 +3898,7 @@ export default function App() {
   const [contactos, setContactos] = useState([]);
   const [contratos, setContratos] = useState([]);
   const [maestros, setMaestros] = useState({ paises: [], industrias: [], tiposContrato: [], formasPago: [] });
+  const [proveedores, setProveedores] = useState([]);
 
   useEffect(() => {
     Promise.all([
@@ -3616,7 +3913,8 @@ export default function App() {
       fetch("/api/contactos").then(r => r.json()),
       fetch("/api/contratos").then(r => r.json()),
       fetch("/api/maestros").then(r => r.json()),
-    ]).then(([cols, servs, asigs, aus, cal, par, disp, clis, conts, contrs, maes]) => {
+      fetch("/api/proveedores").then(r => r.json()),
+    ]).then(([cols, servs, asigs, aus, cal, par, disp, clis, conts, contrs, maes, provs]) => {
       if (Array.isArray(cols) && cols.length > 0) setColaboradores(cols);
       if (Array.isArray(servs) && servs.length > 0) setServicios(servs);
       if (Array.isArray(asigs) && asigs.length > 0) setAsignaciones(asigs);
@@ -3628,6 +3926,7 @@ export default function App() {
       if (Array.isArray(conts)) setContactos(conts);
       if (Array.isArray(contrs)) setContratos(contrs);
       if (maes && !maes.error) setMaestros(m => ({ ...m, ...maes }));
+      if (Array.isArray(provs)) setProveedores(provs);
     }).catch(console.error).finally(() => setLoading(false));
   }, []);
 
@@ -3767,6 +4066,7 @@ export default function App() {
           {view === "asignaciones"  && <ModuloAsignaciones asignaciones={asignaciones} setAsignaciones={setAsignaciones} colaboradores={colaboradores} servicios={servicios} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "forecast"      && <ModuloForecast servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
           {view === "simulador"     && <ModuloSimulador servicios={servicios} colaboradores={colaboradores} disponibilidad={disponibilidad} ausencias={ausencias} calendar={calendar} params={params} />}
+          {view === "proveedores"   && <ModuloProveedores proveedores={proveedores} setProveedores={setProveedores} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} calendar={calendar} params={params} maestros={maestros} />}
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} maestros={maestros} />}
           {/* parametros merged into configuracion */}
           {view === "clientes"      && <ModuloClientes clientes={clientes} setClientes={setClientes} contactos={contactos} setContactos={setContactos} maestros={maestros} />}
