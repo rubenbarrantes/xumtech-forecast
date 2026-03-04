@@ -413,18 +413,14 @@ function ModuloColaboradores({ colaboradores, setColaboradores, ausencias, setAu
 
       <div className="overflow-x-auto rounded-xl border border-slate-700/50">
         <table className="w-full text-sm min-w-[700px]">
-          <thead className="bg-slate-800/80"><tr>{["ID","Nombre","Rol","Tribu","Correo","Teléfono","Ingreso","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
+          <thead className="bg-slate-800/80"><tr>{["ID","Nombre","Puesto","Rol Operativo","Tribu","Correo","Teléfono","Ingreso","Estado",""].map(h => <th key={h} className="text-left px-3 py-3 text-xs font-semibold text-slate-400 uppercase whitespace-nowrap">{h}</th>)}</tr></thead>
           <tbody>
             {filtered.map(co => (
               <tr key={co.id} className={`border-t border-slate-700/30 hover:bg-slate-800/20 ${co.status === "Inactivo" ? "opacity-50" : ""}`}>
                 <td className="px-3 py-3"><button onClick={() => setDetailModal(co)} className="text-blue-400 font-mono text-xs hover:underline font-bold">{co.codigoInterno || `COL-${co.id}`}</button></td>
                 <td className="px-3 py-3"><button onClick={() => setDetailModal(co)} className="text-white font-medium hover:text-blue-300 text-left">{co.name}</button></td>
-                <td className="px-3 py-3 whitespace-nowrap">
-                  <div className="space-y-0.5">
-                    {co.puesto && <p className="text-xs text-slate-400">{co.puesto}</p>}
-                    <Pill label={co.rolOperativo || co.rolPrincipal} color={co.rolOperativo || co.rolPrincipal} />
-                  </div>
-                </td>
+                <td className="px-3 py-3 text-slate-300 text-xs whitespace-nowrap">{co.puesto || "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap"><Pill label={co.rolOperativo || co.rolPrincipal} color={co.rolOperativo || co.rolPrincipal} /></td>
                 <td className="px-3 py-3 whitespace-nowrap"><Pill label={co.tribu} color={co.tribu} /></td>
                 <td className="px-3 py-3 text-slate-400 text-xs">{co.correo || co.email || "—"}</td>
                 <td className="px-3 py-3 text-slate-400 text-xs font-mono">{co.telefono || "—"}</td>
@@ -2325,6 +2321,8 @@ function ModuloContratos({ contratos, setContratos, clientes, colaboradores, mae
 function TabMaestros({ maestros, setMaestros }) {
   const [tab, setTab] = useState("paises");
   const [nuevoItem, setNuevoItem] = useState("");
+  const [editingIdx, setEditingIdx] = useState(null);
+  const [editingVal, setEditingVal] = useState("");
 
   const listas = {
     paises:          { label: "Países" },
@@ -2342,27 +2340,68 @@ function TabMaestros({ maestros, setMaestros }) {
     setMaestros(m => ({ ...m, [tab]: updated }));
   };
 
+  const handleAdd = () => {
+    const v = nuevoItem.trim();
+    if (v && !current.includes(v)) save([...current, v]);
+    setNuevoItem("");
+  };
+
+  const startEdit = (i) => {
+    setEditingIdx(i);
+    setEditingVal(current[i]);
+  };
+
+  const commitEdit = () => {
+    const v = editingVal.trim();
+    if (v && v !== current[editingIdx]) {
+      const updated = current.map((x, i) => i === editingIdx ? v : x);
+      save(updated);
+    }
+    setEditingIdx(null);
+    setEditingVal("");
+  };
+
+  const cancelEdit = () => { setEditingIdx(null); setEditingVal(""); };
+
   return (
     <div className="space-y-4">
       <div className="flex gap-1 border-b border-slate-700/50 overflow-x-auto">
         {Object.entries(listas).map(([key, { label }]) => (
-          <button key={key} onClick={() => { setTab(key); setNuevoItem(""); }}
+          <button key={key} onClick={() => { setTab(key); setNuevoItem(""); setEditingIdx(null); }}
             className={`px-4 py-2 text-xs font-medium whitespace-nowrap rounded-t-lg transition-colors ${tab === key ? "bg-slate-800 text-white border border-slate-700/50" : "text-slate-400 hover:text-slate-300"}`}>
             {label} <span className="ml-1 text-slate-500">({(maestros[key]?.length || defaults[key].length)})</span>
           </button>
         ))}
       </div>
       <div className="flex gap-2">
-        <input value={nuevoItem} onChange={e => setNuevoItem(e.target.value)} onKeyDown={e => e.key === "Enter" && (save([...current, nuevoItem.trim()]), setNuevoItem(""))}
+        <input value={nuevoItem} onChange={e => setNuevoItem(e.target.value)}
+          onKeyDown={e => e.key === "Enter" && handleAdd()}
           placeholder={`Nuevo ${listas[tab].label.slice(0,-1).toLowerCase()}...`}
           className="flex-1 bg-slate-800 border border-slate-700 rounded-lg px-3 py-2 text-sm text-white placeholder-slate-500 focus:outline-none focus:border-blue-500" />
-        <Btn size="sm" onClick={() => { if (nuevoItem.trim() && !current.includes(nuevoItem.trim())) save([...current, nuevoItem.trim()]); setNuevoItem(""); }}>+ Agregar</Btn>
+        <Btn size="sm" onClick={handleAdd}>+ Agregar</Btn>
       </div>
       <div className="space-y-1.5">
         {current.map((item, i) => (
-          <div key={i} className="flex items-center justify-between bg-slate-800/40 rounded-lg px-3 py-2.5 border border-slate-700/30">
-            <span className="text-sm text-white">{item}</span>
-            <button onClick={() => save(current.filter(x => x !== item))} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/10">✕ Eliminar</button>
+          <div key={i} className="flex items-center gap-2 bg-slate-800/40 rounded-lg px-3 py-2 border border-slate-700/30">
+            {editingIdx === i ? (
+              <>
+                <input
+                  autoFocus
+                  value={editingVal}
+                  onChange={e => setEditingVal(e.target.value)}
+                  onKeyDown={e => { if (e.key === "Enter") commitEdit(); if (e.key === "Escape") cancelEdit(); }}
+                  className="flex-1 bg-slate-700 border border-blue-500 rounded px-2 py-1 text-sm text-white focus:outline-none"
+                />
+                <button onClick={commitEdit} className="text-blue-400 hover:text-blue-300 text-xs px-2 py-1 rounded hover:bg-blue-500/10">✓ Guardar</button>
+                <button onClick={cancelEdit} className="text-slate-400 hover:text-slate-300 text-xs px-2 py-1 rounded hover:bg-slate-700">✕</button>
+              </>
+            ) : (
+              <>
+                <span className="flex-1 text-sm text-white">{item}</span>
+                <button onClick={() => startEdit(i)} className="text-slate-400 hover:text-blue-400 text-xs px-2 py-1 rounded hover:bg-slate-700 transition-colors">✏️ Editar</button>
+                <button onClick={() => save(current.filter((_, idx) => idx !== i))} className="text-red-400 hover:text-red-300 text-xs px-2 py-1 rounded hover:bg-red-500/10 transition-colors">✕ Eliminar</button>
+              </>
+            )}
           </div>
         ))}
       </div>
