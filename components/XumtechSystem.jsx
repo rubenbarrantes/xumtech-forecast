@@ -1210,7 +1210,7 @@ function ModuloServicios({ servicios, setServicios, colaboradores, params }) {
 
 // ─── MÓDULO: GESTIÓN DE TRIBU ─────────────────────────────────────────────────
 
-function ModuloTribu({ tribu, servicios, calendar, disponibilidad, ausencias, colaboradores, params }) {
+function ModuloTribu({ tribu, servicios, asignaciones, calendar, disponibilidad, ausencias, colaboradores, params }) {
 
   const [mesSel, setMesSel] = useState("2026-01");
   const [tab, setTab] = useState("planificacion");
@@ -3109,9 +3109,9 @@ export default function App() {
           {view === "colaboradores" && <ModuloColaboradores colaboradores={colaboradores} setColaboradores={setColaboradores} ausencias={ausencias} setAusencias={setAusencias} calendar={calendar} params={params} />}
           {view === "parametros"    && <ModuloParametros calendar={calendar} setCalendar={setCalendar} disponibilidad={disponibilidad} setDisponibilidad={setDisponibilidad} colaboradores={colaboradores} ausencias={ausencias} params={params} setParams={setParams} />}
           {view === "servicios"     && <ModuloServicios servicios={servicios} setServicios={setServicios} colaboradores={colaboradores} params={params} />}
-          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
-          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "dunamis"       && <ModuloTribu tribu="Dunamis" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "yarigai"       && <ModuloTribu tribu="Yarigai" servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
+          {view === "bulwak"        && <ModuloTribu tribu="Bulwak"  servicios={servicios} asignaciones={asignaciones} calendar={calendar} disponibilidad={disponibilidad} ausencias={ausencias} colaboradores={colaboradores} params={params} />}
         </div>
       </div>
     </div>
